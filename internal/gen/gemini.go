@@ -97,6 +97,25 @@ type apiError struct {
 	Status  string `json:"status"`
 }
 
+// geminiSnapAspect maps an arbitrary "W:H" ratio onto the fixed set Gemini accepts.
+// AspectForFrames may request wide custom ratios (e.g. 32:9) that only the computed-size
+// providers support; for Gemini we snap to its widest landscape values so the request stays valid.
+func geminiSnapAspect(aspectRatio string) string {
+	w, h := parseAspect(aspectRatio)
+	if w <= 0 || h <= 0 {
+		return aspectRatio // e.g. "1:1" passes through
+	}
+	r := float64(w) / float64(h)
+	switch {
+	case r >= 21.0/9.0:
+		return "21:9" // anything 21:9 or wider → Gemini's widest landscape
+	case r >= 16.0/9.0:
+		return "16:9"
+	default:
+		return aspectRatio
+	}
+}
+
 // GenerateImage generates an image from a prompt and reference images (PNG bytes).
 // aspectRatio supports values like "1:1", "16:9", "21:9"; it is omitted when empty.
 func (c *Client) GenerateImage(ctx context.Context, prompt string, refImages [][]byte, aspectRatio string) ([]byte, error) {
@@ -121,8 +140,9 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, refImages [][
 	buildBody := func(model string) ([]byte, error) {
 		cfg := &genConfig{ResponseModalities: []string{"TEXT", "IMAGE"}}
 		if aspectRatio != "" {
-			ic := &imageConfig{AspectRatio: aspectRatio}
-			if strings.HasPrefix(model, "gemini-3-pro") && aspectRatio != "1:1" {
+			ar := geminiSnapAspect(aspectRatio)
+			ic := &imageConfig{AspectRatio: ar}
+			if strings.HasPrefix(model, "gemini-3-pro") && ar != "1:1" {
 				ic.ImageSize = "2K"
 			}
 			cfg.ImageConfig = ic

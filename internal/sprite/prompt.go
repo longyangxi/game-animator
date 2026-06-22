@@ -178,14 +178,25 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback string
 	return b.String()
 }
 
-// AspectForFrames picks the generation aspect ratio for the frame count.
+// AspectForFrames picks the generation aspect ratio for the frame count. Width scales
+// with the pose count so each pose keeps a roughly constant horizontal share (~perPose of
+// the canvas height) instead of getting more cramped as frames grow — a wider canvas gives
+// big weapon swings room to stay inside their column instead of crossing into the next pose.
+// Clamped to [16:9, 36:9]: small actions stay ~16:9; very wide ones are capped so pose
+// height/detail doesn't collapse on fixed-max-edge providers. (Providers that only accept a
+// fixed aspect set, e.g. Gemini, snap this down to their nearest supported ratio.)
 func AspectForFrames(frames int) string {
-	switch {
-	case frames <= 1:
+	if frames <= 1 {
 		return "1:1"
-	case frames <= 3:
-		return "16:9"
-	default:
-		return "21:9"
 	}
+	const perPose = 0.6                  // each pose's horizontal share, relative to height 1.0
+	const minR, maxR = 16.0 / 9.0, 4.0   // clamp width:height to [16:9, 36:9]
+	ratio := float64(frames) * perPose
+	if ratio < minR {
+		ratio = minR
+	}
+	if ratio > maxR {
+		ratio = maxR
+	}
+	return fmt.Sprintf("%d:9", int(ratio*9+0.5))
 }
