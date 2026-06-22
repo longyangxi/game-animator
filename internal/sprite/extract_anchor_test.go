@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// fillBox는 NRGBA 이미지에 불투명 사각형을 채웁니다 (양끝 포함).
+// fillBox fills an opaque rectangle in an NRGBA image (inclusive of both ends).
 func fillBox(img *image.NRGBA, x0, y0, x1, y1 int, r, g, b uint8) {
 	for y := y0; y <= y1; y++ {
 		for x := x0; x <= x1; x++ {
@@ -16,7 +16,7 @@ func fillBox(img *image.NRGBA, x0, y0, x1, y1 int, r, g, b uint8) {
 	}
 }
 
-// torsoCenterX는 프레임에서 세로 픽셀 수가 가장 많은 열 묶음(토르소)의 중심을 구합니다.
+// torsoCenterX finds the center of the column band (torso) with the most vertical pixels in the frame.
 func torsoCenterX(f *image.NRGBA, minCount int) float64 {
 	w, h := f.Rect.Dx(), f.Rect.Dy()
 	first, last := -1, -1
@@ -37,26 +37,26 @@ func torsoCenterX(f *image.NRGBA, minCount int) float64 {
 	return float64(first+last) / 2
 }
 
-// TestExtractCentroidAnchor는 동일 포즈들이 모두 셀 중앙에 정렬되고,
-// 팔이 한쪽으로 뻗은 프레임도 bbox 중심 배치보다 토르소가 덜 흔들리는지 검증합니다.
+// TestExtractCentroidAnchor verifies that identical poses all align to the cell center, and that a
+// frame with an arm extended to one side wobbles the torso less than bbox-center placement does.
 func TestExtractCentroidAnchor(t *testing.T) {
 	strip := image.NewNRGBA(image.Rect(0, 0, 480, 100))
-	// 프레임 1·3·4: 20px 폭 토르소만
+	// frames 1·3·4: 20px-wide torso only
 	fillBox(strip, 30, 20, 49, 79, 200, 100, 50)
 	fillBox(strip, 270, 20, 289, 79, 200, 100, 50)
 	fillBox(strip, 390, 20, 409, 79, 200, 100, 50)
-	// 프레임 2: 같은 토르소 + 오른쪽으로 길게 뻗은 얇은 팔 (bbox를 40px 확장)
+	// frame 2: same torso + a thin arm extending far to the right (expands the bbox by 40px)
 	fillBox(strip, 150, 20, 169, 79, 200, 100, 50)
 	fillBox(strip, 170, 30, 209, 33, 200, 100, 50)
 
 	res := ExtractFrames(strip, 4, 100, 100, 8)
 	if res.Found != 4 {
-		t.Fatalf("프레임 수 오류: %d (%v)", res.Found, res.Warnings)
+		t.Fatalf("wrong frame count: %d (%v)", res.Found, res.Warnings)
 	}
 
 	centers := make([]float64, 4)
 	for i, f := range res.Frames {
-		centers[i] = torsoCenterX(f, 40) // 토르소 열은 60px, 팔 열은 4px
+		centers[i] = torsoCenterX(f, 40) // torso columns are 60px, arm columns are 4px
 	}
 	minC, maxC := centers[0], centers[0]
 	for _, c := range centers[1:] {
@@ -64,29 +64,29 @@ func TestExtractCentroidAnchor(t *testing.T) {
 		maxC = math.Max(maxC, c)
 	}
 	spread := maxC - minC
-	// bbox 중심 배치라면 프레임 2의 토르소가 ~20px 왼쪽으로 밀림(spread≈20).
-	// 질량 중심 앵커에서는 팔 질량 비율만큼만 밀려 spread가 한 자릿수여야 함.
+	// With bbox-center placement, frame 2's torso shifts ~20px to the left (spread≈20).
+	// With a center-of-mass anchor it shifts only by the arm's mass fraction, so spread must be single-digit.
 	if spread >= 6 {
-		t.Fatalf("토르소 흔들림 과다: spread=%.1f centers=%v", spread, centers)
+		t.Fatalf("excessive torso wobble: spread=%.1f centers=%v", spread, centers)
 	}
-	// 팔 없는 프레임들은 셀 중앙(50)에 정확히 정렬되어야 함
+	// frames without an arm must align exactly to the cell center (50)
 	for _, i := range []int{0, 2, 3} {
 		if math.Abs(centers[i]-50) > 2 {
-			t.Fatalf("프레임 %d 중앙 정렬 실패: %.1f", i+1, centers[i])
+			t.Fatalf("frame %d center-alignment failed: %.1f", i+1, centers[i])
 		}
 	}
 }
 
-// TestExtractSlotGuard는 포즈에서 멀리 떨어진 잔여 blob이 프레임에 병합되지 않는지 검증합니다.
+// TestExtractSlotGuard verifies that a residual blob far from the poses is not merged into a frame.
 func TestExtractSlotGuard(t *testing.T) {
 	strip := image.NewNRGBA(image.Rect(0, 0, 600, 100))
-	fillBox(strip, 20, 20, 79, 79, 200, 100, 50)   // 포즈 1 (60×60)
-	fillBox(strip, 120, 20, 179, 79, 200, 100, 50) // 포즈 2 (60×60)
-	fillBox(strip, 560, 10, 579, 29, 90, 200, 90)  // 원거리 잔여물 (20×20)
+	fillBox(strip, 20, 20, 79, 79, 200, 100, 50)   // pose 1 (60×60)
+	fillBox(strip, 120, 20, 179, 79, 200, 100, 50) // pose 2 (60×60)
+	fillBox(strip, 560, 10, 579, 29, 90, 200, 90)  // distant residue (20×20)
 
 	res := ExtractFrames(strip, 2, 256, 256, 16)
 	if res.Found != 2 {
-		t.Fatalf("프레임 수 오류: %d", res.Found)
+		t.Fatalf("wrong frame count: %d", res.Found)
 	}
 	for i, f := range res.Frames {
 		opaque := 0
@@ -95,9 +95,9 @@ func TestExtractSlotGuard(t *testing.T) {
 				opaque++
 			}
 		}
-		// 각 프레임은 60×60 본체만 포함해야 함 (잔여물 400px 병합 시 4000)
+		// each frame must contain only the 60×60 body (4000 if the 400px residue were merged)
 		if opaque != 3600 {
-			t.Fatalf("프레임 %d에 잔여물 병합 의심: opaque=%d", i+1, opaque)
+			t.Fatalf("frame %d suspected of merging residue: opaque=%d", i+1, opaque)
 		}
 	}
 }

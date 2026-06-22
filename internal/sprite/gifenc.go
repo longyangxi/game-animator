@@ -8,7 +8,7 @@ import (
 	"sort"
 )
 
-// EncodeGIF는 프레임들을 투명 배경 애니메이션 GIF로 인코딩합니다.
+// EncodeGIF encodes the frames into a transparent-background animated GIF.
 func EncodeGIF(frames []*image.NRGBA, fps int, loop bool) ([]byte, error) {
 	if fps < 1 {
 		fps = 8
@@ -21,12 +21,12 @@ func EncodeGIF(frames []*image.NRGBA, fps int, loop bool) ([]byte, error) {
 	pal := buildPalette(frames)
 	out := &gif.GIF{}
 	if loop {
-		out.LoopCount = 0 // 무한 반복
+		out.LoopCount = 0 // loop forever
 	} else {
-		out.LoopCount = -1 // 1회 재생
+		out.LoopCount = -1 // play once
 	}
 
-	// 팔레트 인덱스 캐시 (양자화 버킷 → 인덱스)
+	// palette index cache (quantization bucket → index)
 	cache := map[uint32]uint8{}
 	nearest := func(r, g, b uint8) uint8 {
 		key := uint32(r>>3)<<10 | uint32(g>>3)<<5 | uint32(b>>3)
@@ -56,7 +56,7 @@ func EncodeGIF(frames []*image.NRGBA, fps int, loop bool) ([]byte, error) {
 				i := frame.PixOffset(x, y)
 				r, g, b, a := frame.Pix[i], frame.Pix[i+1], frame.Pix[i+2], frame.Pix[i+3]
 				if a < 128 {
-					p.SetColorIndex(x, y, 0) // 투명 인덱스
+					p.SetColorIndex(x, y, 0) // transparent index
 					continue
 				}
 				p.SetColorIndex(x, y, nearest(r, g, b))
@@ -74,7 +74,7 @@ func EncodeGIF(frames []*image.NRGBA, fps int, loop bool) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// buildPalette는 프레임 전체에서 최빈 색 255개 + 투명 1개의 팔레트를 만듭니다.
+// buildPalette builds a palette of the 255 most frequent colors across all frames + 1 transparent.
 func buildPalette(frames []*image.NRGBA) color.Palette {
 	type bucket struct {
 		count   int
@@ -118,7 +118,7 @@ func buildPalette(frames []*image.NRGBA) color.Palette {
 	}
 
 	pal := make(color.Palette, 0, len(entries)+1)
-	pal = append(pal, color.NRGBA{0, 0, 0, 0}) // index 0 = 투명
+	pal = append(pal, color.NRGBA{0, 0, 0, 0}) // index 0 = transparent
 	for _, e := range entries {
 		pal = append(pal, color.NRGBA{e.r, e.g, e.b, 255})
 	}

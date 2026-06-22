@@ -4,7 +4,7 @@ import es from "./ui.es";
 import ko from "./ui.ko";
 import zh from "./ui.zh";
 
-// 지원 언어 코드 (기본: 영어)
+// Supported language codes (default: English)
 export type Lang = "en" | "es" | "ko" | "zh";
 
 export const LANGUAGES: { code: Lang; label: string }[] = [
@@ -23,12 +23,12 @@ function readStoredLang(): Lang {
     const v = localStorage.getItem(STORAGE_KEY);
     if (v && DICTS[v as Lang]) return v as Lang;
   } catch {
-    // localStorage 접근 불가 시 기본값
+    // Fall back to default when localStorage is unavailable
   }
   return DEFAULT_LANG;
 }
 
-// {var} 플레이스홀더를 vars 값으로 치환
+// Replace {var} placeholders with values from vars
 function interpolate(template: string, vars?: Record<string, string | number>): string {
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
@@ -57,10 +57,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.setItem(STORAGE_KEY, l);
       } catch {
-        // 저장 실패는 무시 (메모리 상태는 유지됨)
+        // Ignore save failures (in-memory state is preserved)
       }
     };
-    // 누락 키는 영어 → 키 순으로 폴백
+    // Missing keys fall back to English, then to the key itself
     const t: TFunc = (key, vars) => {
       const raw = DICTS[lang]?.[key] ?? DICTS.en[key] ?? key;
       return interpolate(raw, vars);

@@ -9,7 +9,7 @@ import (
 func TestParseEnvFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env.local")
-	content := "# 주석\n" +
+	content := "# comment\n" +
 		"FAL_KEY=abc123:secret\n" +
 		"export OPENROUTER_API_KEY=\"sk-or-test\"\n" +
 		"OPENAI_API_KEY='sk-openai-test'\n" +
@@ -24,19 +24,19 @@ func TestParseEnvFile(t *testing.T) {
 	parseEnvFile(path, out)
 
 	if out["FAL_KEY"] != "abc123:secret" {
-		t.Fatalf("FAL_KEY 파싱 실패: %q", out["FAL_KEY"])
+		t.Fatalf("FAL_KEY parsing failed: %q", out["FAL_KEY"])
 	}
 	if out["OPENROUTER_API_KEY"] != "sk-or-test" {
-		t.Fatalf("export + 따옴표 파싱 실패: %q", out["OPENROUTER_API_KEY"])
+		t.Fatalf("export + quotes parsing failed: %q", out["OPENROUTER_API_KEY"])
 	}
 	if out["OPENAI_API_KEY"] != "sk-openai-test" {
-		t.Fatalf("OPENAI_API_KEY 파싱 실패: %q", out["OPENAI_API_KEY"])
+		t.Fatalf("OPENAI_API_KEY parsing failed: %q", out["OPENAI_API_KEY"])
 	}
 	if out["GEMINI_API_KEY"] != "AIza-test" {
-		t.Fatalf("작은따옴표 파싱 실패: %q", out["GEMINI_API_KEY"])
+		t.Fatalf("single-quote parsing failed: %q", out["GEMINI_API_KEY"])
 	}
 	if _, ok := out["EMPTY"]; ok {
-		t.Fatal("빈 값은 무시되어야 합니다")
+		t.Fatal("empty values should be ignored")
 	}
 }
 
@@ -48,15 +48,15 @@ func TestSettingsCfg(t *testing.T) {
 		Fal:        ProviderCfg{APIKey: "f"},
 	}
 	if s.Cfg("openai").APIKey != "ai" || s.Cfg("openrouter").APIKey != "o" || s.Cfg("fal").APIKey != "f" {
-		t.Fatal("프로바이더별 설정 매핑 오류")
+		t.Fatal("per-provider config mapping error")
 	}
-	// 알 수 없는 프로바이더는 gemini로 폴백
+	// An unknown provider falls back to gemini.
 	if s.Cfg("unknown").APIKey != "g" {
-		t.Fatal("기본 폴백 오류")
+		t.Fatal("default fallback error")
 	}
-	// 포인터 반환이므로 수정이 반영되어야 함
+	// Because a pointer is returned, modifications should be reflected.
 	s.Cfg("fal").Model = "m"
 	if s.Fal.Model != "m" {
-		t.Fatal("Cfg는 포인터를 반환해야 합니다")
+		t.Fatal("Cfg should return a pointer")
 	}
 }

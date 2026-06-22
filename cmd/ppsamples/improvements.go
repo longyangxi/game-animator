@@ -1,8 +1,10 @@
 package main
 
-// 직전 세션 개선(extract.go bodyExtent 스케일, segment.go overlap 복구)의
-// 적용 전/후를 합성 스트립으로 시연한다. 실제 AI 호출 없이 sprite 파이프라인을
-// 그대로 호출하고, "전(WITHOUT)"은 구 동작을 충실히 재현해 나란히 보여준다.
+// Demonstrates the before/after of the previous session's improvements
+// (extract.go bodyExtent scaling, segment.go overlap recovery) using synthetic
+// strips. It calls the sprite pipeline directly without any AI calls, and the
+// "WITHOUT" case faithfully reproduces the old behavior so they can be shown
+// side by side.
 
 import (
 	"fmt"
@@ -16,7 +18,7 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-// contentColRuns는 빈 열(gap 이상 연속)로 구분되는 콘텐츠 열 구간들을 반환한다.
+// contentColRuns returns the content column runs separated by empty columns (gap or more in a row).
 func contentColRuns(strip *image.NRGBA, gap int) [][2]int {
 	w, h := strip.Rect.Dx(), strip.Rect.Dy()
 	colFull := make([]bool, w)
@@ -74,9 +76,9 @@ func runBBox(strip *image.NRGBA, x0, x1, h int) (minX, minY, maxX, maxY int) {
 	return
 }
 
-// bboxSharedExtract는 구 ExtractFrames 동작을 재현한다: 전체 프레임이 공유하는
-// 글로벌 스케일을 "가장 큰 바운딩 박스"에서 끌어온다(=한 프레임의 뻗은 팔다리가
-// 모든 프레임을 함께 축소시킴).
+// bboxSharedExtract reproduces the old ExtractFrames behavior: it derives the
+// global scale shared by all frames from the "largest bounding box" (= one
+// frame's outstretched limb shrinks every frame together).
 func bboxSharedExtract(strip *image.NRGBA, cellW, cellH, margin int) []*image.NRGBA {
 	h := strip.Rect.Dy()
 	runs := contentColRuns(strip, 6)
@@ -139,7 +141,7 @@ func bboxSharedExtract(strip *image.NRGBA, cellW, cellH, margin int) []*image.NR
 	return frames
 }
 
-// bodyHeightPx는 프레임에서 가장 키 큰 불투명 열의 높이(렌더된 캐릭터 크기 척도).
+// bodyHeightPx is the height of the tallest opaque column in a frame (a measure of rendered character size).
 func bodyHeightPx(f *image.NRGBA) int {
 	w, h := f.Rect.Dx(), f.Rect.Dy()
 	best := 0
@@ -175,8 +177,9 @@ func meanBodyHeight(frames []*image.NRGBA, skip int) float64 {
 	return sum / float64(n)
 }
 
-// scanBodyExtent는 모든 실스트립에서 구 bbox 공유 스케일과 신 ExtractFrames의
-// 정상-프레임 본체 높이 비율을 비교해, body-extent 데모로 가장 극적인 후보를 찾는다.
+// scanBodyExtent compares, across all real strips, the normal-frame body height
+// ratio of the old shared-bbox scale vs. the new ExtractFrames, to find the most
+// dramatic candidate for the body-extent demo.
 func scanBodyExtent() {
 	strips, _ := filepath.Glob("sample/*/*/_strip.png")
 	type cand struct {

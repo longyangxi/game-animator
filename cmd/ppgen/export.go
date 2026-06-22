@@ -9,7 +9,7 @@ import (
 	"perfectpixel/internal/sprite"
 )
 
-// resultRow는 상태별 생성 품질 요약(요약 JSON의 한 행)입니다.
+// resultRow is the per-state generation quality summary (one row in the summary JSON).
 type resultRow struct {
 	Name     string   `json:"name"`
 	Expected int      `json:"expected"`
@@ -23,7 +23,7 @@ type resultRow struct {
 	Errors   []string `json:"errors,omitempty"`
 }
 
-// exportSummary는 ppgen 실행 결과를 기계 판독 가능하게 요약한 stdout JSON 구조입니다.
+// exportSummary is the stdout JSON structure that machine-readably summarizes a ppgen run.
 type exportSummary struct {
 	OK          bool        `json:"ok"`
 	OutDir      string      `json:"outDir"`
@@ -38,20 +38,20 @@ type exportSummary struct {
 	Results     []resultRow `json:"results"`
 }
 
-// exportBundle은 상태별 프레임을 게임 엔진용 번들로 디스크에 씁니다.
-// 설치형 앱 ExportProject와 동일한 산출물을 만듭니다 (대화상자 없이 outDir로 직접).
+// exportBundle writes the per-state frames to disk as a game-engine bundle.
+// It produces the same artifacts as the installable app's ExportProject (directly to outDir, without a dialog).
 func exportBundle(outDir, character string, states []sprite.StateFrames, rows []resultRow) (exportSummary, error) {
 	const cell = 256
 	sheet, manifest := sprite.ComposeAtlas(character, states, cell, cell)
 
 	files := []string{"base.png"}
 
-	// 1) 스프라이트시트 PNG
+	// 1) Sprite sheet PNG
 	sheetPath := filepath.Join(outDir, "sprite-sheet.png")
 	savePNG(sheetPath, sheet)
 	files = append(files, "sprite-sheet.png")
 
-	// 2) PerfectPixel 런타임 매니페스트
+	// 2) PerfectPixel runtime manifest
 	if data, err := json.MarshalIndent(manifest, "", "  "); err == nil {
 		if err := os.WriteFile(filepath.Join(outDir, "manifest.json"), data, 0o644); err != nil {
 			return exportSummary{}, err
@@ -59,7 +59,7 @@ func exportBundle(outDir, character string, states []sprite.StateFrames, rows []
 		files = append(files, "manifest.json")
 	}
 
-	// 3) Aseprite 호환 시트 JSON (Phaser/Unity/Godot 임포트)
+	// 3) Aseprite-compatible sheet JSON (Phaser/Unity/Godot import)
 	if data, err := sprite.BuildAsepriteJSON(manifest); err == nil {
 		if err := os.WriteFile(filepath.Join(outDir, "sprite-sheet.json"), data, 0o644); err != nil {
 			return exportSummary{}, err
@@ -67,7 +67,7 @@ func exportBundle(outDir, character string, states []sprite.StateFrames, rows []
 		files = append(files, "sprite-sheet.json")
 	}
 
-	// 4) 상태별 프레임 PNG + GIF + APNG
+	// 4) Per-state frame PNGs + GIF + APNG
 	framesRoot := filepath.Join(outDir, "frames")
 	gifRoot := filepath.Join(outDir, "gif")
 	apngRoot := filepath.Join(outDir, "apng")

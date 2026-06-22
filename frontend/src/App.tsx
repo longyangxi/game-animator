@@ -20,7 +20,7 @@ interface IToast {
   text: string;
 }
 
-// 활성 프로바이더에 키가 있는지 확인
+// Check whether the active provider has a key
 const hasActiveKey = (s: ISettings | null) => !!s?.providers?.[s.provider]?.hasKey;
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -53,18 +53,18 @@ export default function App() {
   const [progress, setProgress] = useState("");
   const [toasts, setToasts] = useState<IToast[]>([]);
 
-  // 최신 상태 참조 (비동기 루프에서 사용)
+  // References to the latest state (used in async loops)
   const statesRef = useRef(states);
   statesRef.current = states;
   const charRef = useRef(character);
   charRef.current = character;
   const cellRef = useRef(cellSize);
   cellRef.current = cellSize;
-  const cancelRef = useRef(false); // 전체 생성 루프 중단 플래그
+  const cancelRef = useRef(false); // Flag to abort the entire generation loop
   const busyRef = useRef(busy);
   busyRef.current = busy;
 
-  const restoredRef = useRef(false); // 세션 복원 완료 전 자동 저장 방지
+  const restoredRef = useRef(false); // Prevent auto-save before session restoration completes
 
   useEffect(() => {
     refreshSettings();
@@ -75,13 +75,13 @@ export default function App() {
       .then((list: any) => {
         if (Array.isArray(list) && list.length > 0) setPresets(list);
       })
-      .catch(() => {}); // 실패 시 FALLBACK_PRESETS 유지
+      .catch(() => {}); // Keep FALLBACK_PRESETS on failure
     const off = EventsOn("progress", (data: any) => {
       const st = data?.state ? `[${data.state}] ` : "";
       setProgress(`${st}${data?.message ?? ""}`);
     });
 
-    // 이전 작업 세션 복원
+    // Restore the previous work session
     (async () => {
       try {
         const raw = await LoadSession();
@@ -98,7 +98,7 @@ export default function App() {
           }
           if (typeof s?.cellSize === "number") setCellSize(s.cellSize);
           if (Array.isArray(s?.states)) {
-            // 생성 도중 종료된 상태는 안전하게 정리, 구버전 절차 애니메이션 상태는 제외
+            // Safely clean up states left mid-generation; exclude legacy procedural animation states
             const states: StateDef[] = s.states
               .filter((st: any) => st?.mode !== "procedural")
               .map((st: StateDef) => ({
@@ -110,7 +110,7 @@ export default function App() {
           }
         }
       } catch {
-        // 손상된 세션은 무시
+        // Ignore corrupted sessions
       } finally {
         restoredRef.current = true;
       }
@@ -119,7 +119,7 @@ export default function App() {
     return off;
   }, []);
 
-  // 작업 세션 자동 저장 (디바운스)
+  // Auto-save the work session (debounced)
   useEffect(() => {
     if (!restoredRef.current) return;
     const t = setTimeout(() => {
@@ -128,7 +128,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, [character, cellSize, states, selectedId]);
 
-  // 전역 단축키: ⌘, 설정 / ⌘E 내보내기 / ⌘G 갤러리
+  // Global shortcuts: ⌘, Settings / ⌘E Export / ⌘G Gallery
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -165,8 +165,8 @@ export default function App() {
   };
 
   const updateState = (id: string, patch: Partial<StateDef>) => {
-    // statesRef를 즉시 갱신: 방향 세트 순차 생성 루프가 리렌더 전에
-    // 직전 방향의 결과(정면 스트립, 미러 소스)를 읽을 수 있어야 함
+    // Update statesRef immediately: the sequential direction-set generation loop must
+    // be able to read the previous direction's results (front strip, mirror source) before re-render
     statesRef.current = statesRef.current.map((s) => (s.id === id ? { ...s, ...patch } : s));
     setStates(statesRef.current);
   };
@@ -179,7 +179,7 @@ export default function App() {
     const prevItems = st.items;
     updateState(id, { status: "generating", error: undefined, warnings: [], feedback });
     try {
-      // 미러 방향: AI 호출 없이 소스 방향 프레임을 좌우 반전
+      // Mirror direction: horizontally flip the source direction's frames without an AI call
       if (st.mirrorOf) {
         const src = statesRef.current.find(
           (s) => s.dirBase === st.dirBase && s.facing === st.mirrorOf && s.status === "done" && s.items.length > 0
@@ -208,7 +208,7 @@ export default function App() {
         return items.length > 0;
       }
 
-      // 방향 세트 소속이면 정면(south) 스트립을 모션 참조로 전달
+      // If part of a direction set, pass the front (south) strip as a motion reference
       let refStrip = "";
       if (st.dirBase && st.facing && st.facing !== "south") {
         const south = statesRef.current.find((s) => s.dirBase === st.dirBase && s.facing === "south");
@@ -240,7 +240,7 @@ export default function App() {
             overall: (res.scores as any).overall ?? 0,
           }
         : undefined;
-      // 품질 점수가 매우 낮으면 명시적 경고 추가 (사용자가 재생성을 고려할 수 있도록)
+      // If the quality score is very low, add an explicit warning (so the user can consider regenerating)
       const extraWarnings: string[] = [];
       if (scores && scores.overall < 0.35) {
         extraWarnings.push(t("score_low_warn"));
@@ -256,8 +256,8 @@ export default function App() {
       return items.length > 0;
     } catch (e) {
       const msg = String(e);
-      if (msg.includes("취소")) {
-        // 취소: 이전 결과를 보존하고 조용히 복귀
+      if (msg.includes("canceled")) {
+        // Canceled: preserve the previous results and return quietly
         updateState(id, { status: prevItems.length > 0 ? "done" : "idle", items: prevItems });
         toast("info", t("toast_gen_canceled"));
         return false;
@@ -267,8 +267,8 @@ export default function App() {
     }
   };
 
-  // 여러 상태를 동시성 제한 하에 병렬 생성하고 성공 개수를 반환한다.
-  // (fal 등 일부 프로바이더의 rate-limit 대비 — 8방향 세트와 동일한 기본값 3)
+  // Generate multiple states in parallel under a concurrency limit and return the success count.
+  // (Guards against rate limits on some providers like fal — default of 3, same as the 8-direction set)
   const GEN_CONCURRENCY = 3;
   const generateBatch = async (ids: string[]): Promise<number> => {
     const queue = [...ids];
@@ -304,7 +304,7 @@ export default function App() {
     setProgress("");
   };
 
-  // 8방향 세트: 5방향 AI 생성(south가 정면 레퍼런스) + 3방향 좌우 미러링
+  // 8-direction set: 5 directions AI-generated (south as front reference) + 3 directions horizontally mirrored
   const handleGenerateDirectionSet = async (id: string) => {
     if (busy || directions.length === 0) return;
     const origin = statesRef.current.find((s) => s.id === id);
@@ -316,17 +316,17 @@ export default function App() {
     const base = origin.dirBase ?? origin.name;
     const labelBase = origin.dirBase ? origin.label.split("·")[0] : origin.label;
 
-    // 세트 상태 보장: 클릭한 상태를 south로 전환하고 누락 방향만 추가
+    // Ensure set state: convert the clicked state to south and add only the missing directions
     let next = [...statesRef.current];
     if (!origin.dirBase) {
-      // 다른 방향으로 생성된 기존 프레임은 south로 재사용할 수 없으므로 초기화
+      // Existing frames generated for another direction can't be reused as south, so reset them
       const keepItems = !origin.facing || origin.facing === "south";
       next = next.map((s) =>
         s.id === id
           ? {
               ...s,
               name: `${base}-south`,
-              label: `${labelBase}·정면`,
+              label: `${labelBase}·Front`,
               dirBase: base,
               facing: "south",
               ...(keepItems ? {} : { items: [], status: "idle" as const, rawStrip: undefined, warnings: [] }),
@@ -357,15 +357,15 @@ export default function App() {
     statesRef.current = next;
     setStates(next);
 
-    // 생성 순서: south 먼저(정면 레퍼런스, 나머지 방향의 모션 참조) →
-    // 나머지 AI 방향은 동시성 제한 병렬 생성 → 미러 3종(로컬, 빠름)
-    setSelectedId(id); // 세트 미리보기(방향 그리드)가 보이도록 south 선택
+    // Generation order: south first (front reference, motion reference for the other directions) →
+    // the remaining AI directions in parallel under a concurrency limit → 3 mirrors (local, fast)
+    setSelectedId(id); // Select south so the set preview (direction grid) is visible
     let ok = 0;
     let failed = 0;
     const genKey = async (key: string): Promise<boolean | null> => {
       const st = statesRef.current.find((s) => s.dirBase === base && s.facing === key);
       if (!st) return null;
-      if (st.status === "done" && st.items.length > 0) return true; // 이미 완성된 방향 재사용
+      if (st.status === "done" && st.items.length > 0) return true; // Reuse an already-completed direction
       return generateOne(st.id);
     };
     const tally = (r: boolean | null) => {
@@ -373,10 +373,10 @@ export default function App() {
       else if (r === false) failed += 1;
     };
 
-    // 1) south (모션 참조용) — 반드시 먼저 완료
+    // 1) south (for motion reference) — must complete first
     if (!cancelRef.current) tally(await genKey("south"));
 
-    // 2) 나머지 AI 방향 병렬 (fal rate-limit 대비 동시성 3개로 제한)
+    // 2) Remaining AI directions in parallel (limited to a concurrency of 3 to guard against fal rate limits)
     const aiRest = ["east", "north", "south-east", "north-east"];
     const queue = [...aiRest];
     const CONCURRENCY = 3;
@@ -389,7 +389,7 @@ export default function App() {
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
 
-    // 3) 미러 방향 (east/se/ne 완료 후, AI 호출 없이 좌우 반전)
+    // 3) Mirror directions (after east/se/ne complete, horizontally flip without an AI call)
     const mirrorKeys = directions.filter((d) => d.mirrorOf).map((d) => d.key);
     for (const key of mirrorKeys) {
       if (cancelRef.current) break;
@@ -410,8 +410,8 @@ export default function App() {
     setBusy(true);
     cancelRef.current = false;
     const pending = statesRef.current.filter((s) => s.status !== "done");
-    // 미러 방향은 소스 방향이 먼저 생성되어야 하므로 비미러를 먼저 병렬 생성하고,
-    // 그 다음 미러를 병렬 생성한다.
+    // Mirror directions require their source direction to be generated first, so generate
+    // non-mirror directions in parallel first, then the mirrors in parallel.
     const nonMirror = pending.filter((s) => !s.mirrorOf).map((s) => s.id);
     const mirror = pending.filter((s) => s.mirrorOf).map((s) => s.id);
     const total = nonMirror.length + mirror.length;
@@ -427,7 +427,7 @@ export default function App() {
     }
   };
 
-  // 커스텀 N개를 한 번에 추가하고 곧바로 순차 생성
+  // Add N custom states at once and generate them sequentially right away
   const handleAddCustomBatch = async (count: number) => {
     if (busy) return;
     const n = Math.max(1, Math.min(10, count));
@@ -435,7 +435,7 @@ export default function App() {
     const created: StateDef[] = Array.from({ length: n }, (_, i) => ({
       id: uid("st"),
       name: `custom${base + 1 + i}`,
-      label: "커스텀",
+      label: "Custom",
       frames: 4,
       fps: 8,
       loop: true,
@@ -445,7 +445,7 @@ export default function App() {
       warnings: [],
       feedback: "",
     }));
-    // statesRef를 즉시 갱신: generateOne이 리렌더 전에 새 상태를 찾을 수 있도록
+    // Update statesRef immediately so generateOne can find the new states before re-render
     statesRef.current = [...statesRef.current, ...created];
     setStates(statesRef.current);
     const ids = created.map((s) => s.id);
@@ -455,7 +455,7 @@ export default function App() {
 
     setBusy(true);
     cancelRef.current = false;
-    // 배치 전체를 동시성 제한 하에 병렬 생성
+    // Generate the entire batch in parallel under a concurrency limit
     const ok = await generateBatch(ids);
     setBusy(false);
     setProgress("");
@@ -469,8 +469,8 @@ export default function App() {
     CancelGeneration();
   };
 
-  // 새 프로젝트: 작업 내용이 있으면 인앱 확인 모달을 띄우고, 없으면 바로 초기화.
-  // (window.confirm은 Wails WKWebView에서 동작하지 않으므로 사용하지 않음)
+  // New project: if there is existing work, show an in-app confirmation modal; otherwise reset immediately.
+  // (window.confirm is not used because it doesn't work in the Wails WKWebView)
   const handleNewProject = () => {
     if (busy) return;
     const hasWork = !!charRef.current.image || statesRef.current.length > 0;
@@ -490,7 +490,7 @@ export default function App() {
     try {
       await ClearSession();
     } catch {
-      // 세션 파일 삭제 실패는 무시 (다음 자동 저장이 덮어씀)
+      // Ignore failures to delete the session file (the next auto-save will overwrite it)
     }
     toast("info", t("toast_new_project"));
   };
@@ -572,7 +572,7 @@ export default function App() {
             busy={busy}
             onChange={setCharacter}
             onCellSize={setCellSize}
-            onError={(m) => (m.includes("취소") ? toast("info", t("toast_gen_canceled")) : toast("error", m))}
+            onError={(m) => (m.includes("canceled") ? toast("info", t("toast_gen_canceled")) : toast("error", m))}
           />
         </section>
 

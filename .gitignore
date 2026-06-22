@@ -7,23 +7,23 @@ frontend/dist
 frontend/package.json.md5
 .DS_Store
 
-# 검증 하니스 빌드 산출물
+# Validation harness build artifacts
 /ppvalidate
 
-# da:image 생성 산출물
+# da:image generation artifacts
 .da-image/
 
-# 클론한 외부 저장소
+# Cloned external repositories
 /hyperframes/
 
-# 홍보용 홈페이지 (정적 마케팅 사이트)
+# Promotional homepage (static marketing site)
 /home/
 home.sh
 
-# 샘플 산출물
+# Sample artifacts
 /sample/
 
-# 내부 문서
+# Internal documents
 기술분석-스프라이트생성-알고리즘.md
 홍보기사.md
 .mcp.json

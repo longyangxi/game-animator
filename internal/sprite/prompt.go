@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// StylePresets는 선택 가능한 스타일 계약 모음입니다.
+// StylePresets is the set of selectable style contracts.
 var StylePresets = map[string]string{
 	"pixel": "true low-resolution pixel-art game sprite, like a 32-64px sprite enlarged on the canvas, " +
 		"chunky readable silhouette, clean dark 1px outline, visible square pixel blocks, " +
@@ -27,10 +27,10 @@ var StylePresets = map[string]string{
 		"Never use modern smooth shading or high-resolution detail.",
 }
 
-// keyColorPhrase는 키잉 배경 묘사 문구입니다 (매팅이 분리하는 색).
+// keyColorPhrase is the keying-background description phrase (the color matting separates).
 const keyColorPhrase = "pure keying magenta (#FF00FF), perfectly uniform edge to edge"
 
-// ResolveStyle은 프리셋 키 또는 커스텀 스타일 텍스트를 스타일 계약으로 변환합니다.
+// ResolveStyle converts a preset key or custom style text into a style contract.
 func ResolveStyle(presetKey, custom string) string {
 	if strings.TrimSpace(custom) != "" {
 		return strings.TrimSpace(custom)
@@ -41,7 +41,7 @@ func ResolveStyle(presetKey, custom string) string {
 	return StylePresets["pixel"]
 }
 
-// canvasContract는 키잉 캔버스 규칙을 반환합니다 (매팅 단계가 의존하는 핵심 계약).
+// canvasContract returns the keying-canvas rules (the core contract the matting stage relies on).
 func canvasContract() string {
 	var b strings.Builder
 	b.WriteString("Keying canvas (the renderer mattes this away — obey exactly):\n")
@@ -51,7 +51,7 @@ func canvasContract() string {
 	return b.String()
 }
 
-// spriteDesignContract는 기본 픽셀 스타일에서 요구하는 게임 스프라이트 구조를 고정합니다.
+// spriteDesignContract locks in the game-sprite structure required by the default pixel style.
 func spriteDesignContract() string {
 	var b strings.Builder
 	b.WriteString("Game-sprite design contract:\n")
@@ -63,7 +63,7 @@ func spriteDesignContract() string {
 	return b.String()
 }
 
-// lowResPixelContract는 모델이 HD 일러스트로 도망가지 않게 렌더링 해상도 감각을 고정합니다.
+// lowResPixelContract locks in the rendering-resolution feel so the model does not drift into an HD illustration.
 func lowResPixelContract() string {
 	var b strings.Builder
 	b.WriteString("Pixel rendering contract:\n")
@@ -82,7 +82,7 @@ func pixelStyleContracts(style string) string {
 	return spriteDesignContract() + "\n" + lowResPixelContract()
 }
 
-// rejectClause는 추출을 방해하는 요소를 거부하는 간결한 계약입니다.
+// rejectClause is a concise contract rejecting elements that hinder extraction.
 func rejectClause() string {
 	var b strings.Builder
 	b.WriteString("Reject (these break automatic extraction):\n")
@@ -94,7 +94,7 @@ func rejectClause() string {
 	return b.String()
 }
 
-// BuildCharacterPrompt는 텍스트 설명 → 베이스 캐릭터 이미지 생성 프롬프트를 만듭니다.
+// BuildCharacterPrompt builds the text-description → base-character image generation prompt.
 func BuildCharacterPrompt(description, style string) string {
 	var b strings.Builder
 	b.WriteString("Produce one complete game-character reference sprite in a relaxed player-avatar standing pose.\n\n")
@@ -116,7 +116,7 @@ func BuildCharacterPrompt(description, style string) string {
 	return b.String()
 }
 
-// BuildStripPrompt는 상태별 가로 스트립 생성 프롬프트를 만듭니다.
+// BuildStripPrompt builds the per-state horizontal strip generation prompt.
 func BuildStripPrompt(description, style string, spec StateSpec, feedback string) string {
 	var b strings.Builder
 	n := spec.Frames
@@ -178,7 +178,7 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback string
 	return b.String()
 }
 
-// AspectForFrames는 프레임 수에 맞는 생성 종횡비를 고릅니다.
+// AspectForFrames picks the generation aspect ratio for the frame count.
 func AspectForFrames(frames int) string {
 	switch {
 	case frames <= 1:

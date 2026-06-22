@@ -19,7 +19,7 @@ export interface IGalleryImage {
   name: string;
   path: string;
   size: number;
-  modTime: number; // Unix 밀리초
+  modTime: number; // Unix milliseconds
 }
 
 interface IProps {
@@ -33,10 +33,10 @@ function formatSize(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)}MB`;
 }
 
-// 썸네일 캐시 (경로+수정시각 기준, 모달 재오픈 시 재사용)
+// Thumbnail cache (keyed by path + modification time, reused when the modal is reopened)
 const thumbCache = new Map<string, string>();
 
-// 화면에 보일 때만 썸네일을 로드하는 그리드 셀
+// Grid cell that loads its thumbnail only when visible on screen
 function Thumb({ item, onClick }: { item: IGalleryImage; onClick: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
   const cacheKey = `${item.path}|${item.modTime}`;
@@ -74,7 +74,7 @@ function Thumb({ item, onClick }: { item: IGalleryImage; onClick: () => void }) 
   );
 }
 
-// 갤러리 모달: 생성 이미지 갤러리 + 내 컴퓨터 이미지 뷰어
+// Gallery modal: generated-image gallery + local computer image viewer
 export default function GalleryModal({ onClose, onError }: IProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState<"gallery" | "local">("gallery");
@@ -138,7 +138,7 @@ export default function GalleryModal({ onClose, onError }: IProps) {
     }
   };
 
-  // 확대 뷰: 선택된 이미지의 원본 로드
+  // Zoomed view: load the full-size original of the selected image
   useEffect(() => {
     if (viewIdx == null) {
       setViewSrc("");
@@ -158,7 +158,7 @@ export default function GalleryModal({ onClose, onError }: IProps) {
     };
   }, [viewIdx, items]);
 
-  // 뷰어 키보드 내비게이션 (←/→, Esc는 Dialog에서 처리)
+  // Viewer keyboard navigation (←/→; Esc is handled by the Dialog)
   useEffect(() => {
     if (viewIdx == null) return;
     const onKey = (e: KeyboardEvent) => {

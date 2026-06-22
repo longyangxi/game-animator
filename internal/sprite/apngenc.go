@@ -7,8 +7,8 @@ import (
 	"github.com/kettek/apng"
 )
 
-// EncodeAPNG는 프레임들을 APNG로 인코딩합니다.
-// GIF와 달리 8-bit 풀 알파를 지원해 가장자리가 깨지지 않습니다.
+// EncodeAPNG encodes the frames into an APNG.
+// Unlike GIF, it supports 8-bit full alpha so edges do not break up.
 func EncodeAPNG(frames []*image.NRGBA, fps int, loop bool) ([]byte, error) {
 	if fps <= 0 {
 		fps = 8

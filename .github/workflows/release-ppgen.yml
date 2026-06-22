@@ -1,8 +1,8 @@
-# ppgen 헤드리스 생성기를 플랫폼별로 크로스컴파일해 GitHub Release 에 첨부한다.
-# 스킬의 install.sh 가 이 자산(ppgen-<os>-<arch>)을 다운로드해 Go 없이 설치한다.
+# Cross-compile the ppgen headless generator for each platform and attach it to a GitHub Release.
+# The skill's install.sh downloads this asset (ppgen-<os>-<arch>) to install without Go.
 #
-# 트리거: v* 태그 push (예: git tag v1.0.0 && git push --tags)
-#         또는 수동 실행(workflow_dispatch).
+# Trigger: pushing a v* tag (e.g. git tag v1.0.0 && git push --tags)
+#          or a manual run (workflow_dispatch).
 name: release-ppgen
 
 on:

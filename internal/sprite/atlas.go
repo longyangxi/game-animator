@@ -6,7 +6,7 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-// ComposeAtlas는 상태별 프레임을 행 단위로 배치한 스프라이트시트와 매니페스트를 만듭니다.
+// ComposeAtlas builds a spritesheet with per-state frames laid out row by row, plus a manifest.
 func ComposeAtlas(character string, states []StateFrames, cellW, cellH int) (*image.NRGBA, Manifest) {
 	maxFrames := 1
 	for _, s := range states {
@@ -57,13 +57,13 @@ func ComposeAtlas(character string, states []StateFrames, cellW, cellH int) (*im
 				groundY = b
 			}
 		}
-		// 공통 발 앵커: 셀 가로 중앙 + 모든 프레임 콘텐츠의 최하단(지면).
-		// 단, groundY가 너무 위에 있으면(콘텐츠가 꼭대기) 기본값 셀 하단으로
-		// 대체하여 pivot이 프레임 밖으로 튀어나가지 않게 한다.
+		// Shared foot anchor: cell horizontal center + the lowest point (ground) of all frames' content.
+		// However, if groundY is too high (content at the top), fall back to the default cell bottom
+		// so the pivot does not poke outside the frame.
 		if groundY < cellH/2 && len(s.Frames) > 0 {
 			groundY = cellH
 		}
-		// abnormal pitfall: groundY가 셀보다 아래로 나가지 않도록 clamp
+		// abnormal pitfall: clamp so groundY does not extend below the cell
 		if groundY > cellH {
 			groundY = cellH
 		}
@@ -73,7 +73,7 @@ func ComposeAtlas(character string, states []StateFrames, cellW, cellH int) (*im
 	return sheet, manifest
 }
 
-// contentBBox는 프레임의 불투명 콘텐츠 경계 사각형(셀 로컬 좌표)을 구합니다.
+// contentBBox computes the bounding rectangle of a frame's opaque content (cell-local coordinates).
 func contentBBox(f *image.NRGBA) FrameRect {
 	w, h := f.Rect.Dx(), f.Rect.Dy()
 	minX, minY, maxX, maxY := w, h, -1, -1

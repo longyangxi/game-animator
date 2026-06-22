@@ -5,9 +5,9 @@ import (
 	"sort"
 )
 
-// DetectPixelScale은 AI가 생성한 "가짜 픽셀아트"의 실제 픽셀 블록 크기를 추정합니다.
-// 수평/수직 동일-색 run 길이의 최빈값을 사용합니다 (unfake.js 기법).
-// 감지 실패 또는 이미 네이티브 해상도면 1을 반환합니다.
+// DetectPixelScale estimates the actual pixel block size of AI-generated "fake pixel art".
+// It uses the mode of horizontal/vertical same-color run lengths (the unfake.js technique).
+// Returns 1 if detection fails or the image is already at native resolution.
 func DetectPixelScale(img *image.NRGBA) int {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	if w < 32 || h < 32 {
@@ -53,7 +53,7 @@ func DetectPixelScale(img *image.NRGBA) int {
 
 	best, bestCount := 1, 0
 	for s := 2; s <= maxScale; s++ {
-		// 짧은 run이 항상 많으므로 run 길이로 가중
+		// short runs are always numerous, so weight by run length
 		weighted := hist[s] * s
 		if weighted > bestCount {
 			best, bestCount = s, weighted
@@ -65,7 +65,7 @@ func DetectPixelScale(img *image.NRGBA) int {
 	return best
 }
 
-// nearRGB는 약간의 AA 노이즈를 허용하는 색 비교입니다.
+// nearRGB is a color comparison that tolerates slight AA noise.
 func nearRGB(r1, g1, b1, r2, g2, b2 uint8) bool {
 	const tol = 12
 	return absInt(int(r1)-int(r2)) <= tol && absInt(int(g1)-int(g2)) <= tol && absInt(int(b1)-int(b2)) <= tol
@@ -78,8 +78,8 @@ func absInt(v int) int {
 	return v
 }
 
-// Pixelize는 이미지를 scale×scale 블록 단위로 스냅해 진짜 픽셀아트 그리드로 만듭니다.
-// 각 블록의 dominant color를 채택하고 출력 크기는 입력과 동일하게 유지합니다.
+// Pixelize snaps the image to scale×scale blocks to form a true pixel-art grid.
+// It adopts each block's dominant color and keeps the output size identical to the input.
 func Pixelize(img *image.NRGBA, scale int) *image.NRGBA {
 	if scale < 2 {
 		return img
@@ -93,7 +93,7 @@ func Pixelize(img *image.NRGBA, scale int) *image.NRGBA {
 	for by := 0; by < h; by += scale {
 		for bx := 0; bx < w; bx += scale {
 			bw, bh := min(scale, w-bx), min(scale, h-by)
-			// 블록 내 dominant color 결정 (알파 과반 → 색 최빈)
+			// determine the block's dominant color (alpha majority → most frequent color)
 			opaque := 0
 			counts := make(map[rgb]int, 8)
 			for dy := 0; dy < bh; dy++ {
@@ -107,7 +107,7 @@ func Pixelize(img *image.NRGBA, scale int) *image.NRGBA {
 				}
 			}
 			if opaque*2 < bw*bh {
-				continue // 블록 과반이 투명 → 빈 블록
+				continue // block is mostly transparent → empty block
 			}
 			var dom counted
 			for c, n := range counts {
@@ -126,7 +126,7 @@ func Pixelize(img *image.NRGBA, scale int) *image.NRGBA {
 	return out
 }
 
-// PaletteSizeForStyle은 스타일별 권장 팔레트 색 수를 반환합니다 (0이면 후처리 비활성).
+// PaletteSizeForStyle returns the recommended palette color count per style (0 disables post-processing).
 func PaletteSizeForStyle(styleKey string) int {
 	switch styleKey {
 	case "retro16":
@@ -134,12 +134,12 @@ func PaletteSizeForStyle(styleKey string) int {
 	case "pixel":
 		return 32
 	default:
-		return 0 // chibi/cartoon/custom은 픽셀 그리드 강제하지 않음
+		return 0 // chibi/cartoon/custom do not force a pixel grid
 	}
 }
 
-// PixelPostProcess는 한 상태의 프레임 묶음에 공유 팔레트 양자화 + 픽셀 그리드 스냅을 적용합니다.
-// 프레임들은 in-place로 수정되거나 교체됩니다.
+// PixelPostProcess applies shared-palette quantization + pixel-grid snapping to a state's bundle of frames.
+// The frames are modified in-place or replaced.
 func PixelPostProcess(frames []*image.NRGBA, paletteSize int) {
 	if paletteSize <= 0 || len(frames) == 0 {
 		return
@@ -153,7 +153,7 @@ func PixelPostProcess(frames []*image.NRGBA, paletteSize int) {
 		ApplyPalette(f, palette)
 		scales = append(scales, DetectPixelScale(f))
 	}
-	// 프레임 간 그리드 일관성을 위해 중앙값 스케일 공유
+	// share the median scale for grid consistency across frames
 	sorted := append([]int(nil), scales...)
 	sort.Ints(sorted)
 	scale := sorted[len(sorted)/2]

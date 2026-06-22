@@ -1,11 +1,11 @@
 import { Lang } from ".";
 
-// 백엔드(presets.go / direction.go)가 보내는 한국어 라벨을 프론트에서 다국어로 치환한다.
-// 프리셋은 안정적인 영문 name을 키로, 카테고리는 백엔드 한국어 문자열을 키로 사용한다.
+// Maps the labels sent by the backend (presets.go / direction.go) into the localized strings shown on the frontend.
+// Presets are keyed by their stable English name; categories are keyed by the backend's English category string.
 
 type L = Record<Lang, string>;
 
-// 100개 프리셋 라벨 (name → 4개 언어)
+// 100 preset labels (name → 4 languages)
 export const PRESET_LABELS: Record<string, L> = {
   idle: { en: "Idle", es: "Reposo", ko: "대기", zh: "待机" },
   "idle-combat": { en: "Combat Idle", es: "Reposo de combate", ko: "전투 대기", zh: "战斗待机" },
@@ -109,17 +109,17 @@ export const PRESET_LABELS: Record<string, L> = {
   fish: { en: "Fish", es: "Pescar", ko: "낚시", zh: "钓鱼" },
 };
 
-// 카테고리 (백엔드 한국어 문자열 → 4개 언어)
+// Categories (backend English category string → 4 languages)
 export const CATEGORY_LABELS: Record<string, L> = {
-  "기본 동작": { en: "Basics", es: "Básicos", ko: "기본 동작", zh: "基础动作" },
-  전투: { en: "Combat", es: "Combate", ko: "전투", zh: "战斗" },
-  "마법·스킬": { en: "Magic & Skills", es: "Magia y habilidades", ko: "마법·스킬", zh: "魔法·技能" },
-  "피해·상태이상": { en: "Damage & Status", es: "Daño y estados", ko: "피해·상태이상", zh: "受伤·状态" },
-  "감정·표현": { en: "Emotion", es: "Emoción", ko: "감정·표현", zh: "情感·表现" },
-  상호작용: { en: "Interaction", es: "Interacción", ko: "상호작용", zh: "互动" },
+  Basics: { en: "Basics", es: "Básicos", ko: "기본 동작", zh: "基础动作" },
+  Combat: { en: "Combat", es: "Combate", ko: "전투", zh: "战斗" },
+  "Magic & Skills": { en: "Magic & Skills", es: "Magia y habilidades", ko: "마법·스킬", zh: "魔法·技能" },
+  "Damage & Status": { en: "Damage & Status", es: "Daño y estados", ko: "피해·상태이상", zh: "受伤·状态" },
+  Emotion: { en: "Emotion", es: "Emoción", ko: "감정·표현", zh: "情感·表现" },
+  Interaction: { en: "Interaction", es: "Interacción", ko: "상호작용", zh: "互动" },
 };
 
-// 방향 (key → 4개 언어 라벨)
+// Directions (key → 4-language labels)
 export const DIRECTION_LABELS: Record<string, L> = {
   "north-west": { en: "¾ Back-L", es: "¾ Atrás-Izq", ko: "¾ 뒤·좌", zh: "¾后·左" },
   north: { en: "Back", es: "Atrás", ko: "뒷면", zh: "背面" },
@@ -131,7 +131,7 @@ export const DIRECTION_LABELS: Record<string, L> = {
   "south-east": { en: "¾ Front-R", es: "¾ Frente-Der", ko: "¾ 앞·우", zh: "¾前·右" },
 };
 
-// 아트 스타일 (key → 4개 언어)
+// Art styles (key → 4 languages)
 export const STYLE_LABELS: Record<string, L> = {
   pixel: { en: "Pixel Art", es: "Pixel Art", ko: "픽셀 아트", zh: "像素风" },
   chibi: { en: "Chibi", es: "Chibi", ko: "치비", zh: "Q版" },
@@ -151,8 +151,8 @@ export const categoryLabel = (cat: string, lang: Lang) => pick(CATEGORY_LABELS, 
 export const directionName = (key: string, lang: Lang, fallback = key) => pick(DIRECTION_LABELS, key, lang, fallback);
 export const styleLabel = (key: string, lang: Lang, fallback = key) => pick(STYLE_LABELS, key, lang, fallback);
 
-// 상태 카드/헤더 표시명을 현재 언어로 구성한다.
-// 프리셋 name이면 카탈로그 라벨, custom이면 customWord, 8방향 세트면 방향 접미사를 붙인다.
+// Builds the display name for a state card/header in the current language.
+// Uses the catalog label for a preset name, customWord for custom states, and appends a direction suffix for 8-direction sets.
 export function composeStateLabel(
   s: { name: string; label: string; dirBase?: string; facing?: string },
   lang: Lang,

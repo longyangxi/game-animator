@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// makeCharFrame은 지정 색 구성의 더미 캐릭터 프레임을 만듭니다.
+// makeCharFrame creates a dummy character frame with the given color composition.
 func makeCharFrame(body, hair rgb) *image.NRGBA {
 	f := image.NewNRGBA(image.Rect(0, 0, 64, 64))
 	set := func(x, y int, c rgb) {
@@ -35,7 +35,7 @@ func TestInspectDriftConsistent(t *testing.T) {
 	}
 	res := InspectFrames(frames, [3]uint8{255, 0, 255}, nil)
 	for _, e := range res.Errors {
-		if strings.Contains(e, "색 구성") {
+		if strings.Contains(e, "color composition") {
 			t.Errorf("consistent frames flagged as drift: %s", e)
 		}
 	}
@@ -51,14 +51,14 @@ func TestInspectDriftDetected(t *testing.T) {
 	frames := []*image.NRGBA{
 		makeCharFrame(body, hair),
 		makeCharFrame(body, hair),
-		// 캐릭터 정체성 변형: 완전히 다른 색 구성
+		// character identity change: completely different color composition
 		makeCharFrame(rgb{20, 200, 60}, rgb{240, 30, 30}),
 		makeCharFrame(body, hair),
 	}
 	res := InspectFrames(frames, [3]uint8{255, 0, 255}, nil)
 	found := false
 	for _, e := range res.Errors {
-		if strings.Contains(e, "프레임 3") && strings.Contains(e, "색 구성") {
+		if strings.Contains(e, "Frame 3") && strings.Contains(e, "color composition") {
 			found = true
 		}
 	}
@@ -76,11 +76,11 @@ func TestInspectDriftDetected(t *testing.T) {
 	}
 }
 
-// TestInspectBaseDrift는 모든 프레임이 함께 드리프트해 leave-one-out으로는
-// 안 잡히는 경우를 베이스 대비 검사가 잡아내는지 검증합니다.
+// TestInspectBaseDrift verifies that the check against the base catches the case where all
+// frames drift together and leave-one-out does not catch it.
 func TestInspectBaseDrift(t *testing.T) {
 	base := makeCharFrame(rgb{60, 120, 200}, rgb{180, 140, 40})
-	// 프레임들은 서로 일관되지만 베이스와 전혀 다른 색 구성
+	// the frames are consistent with each other but a completely different color composition from the base
 	other, otherHair := rgb{20, 200, 60}, rgb{240, 30, 30}
 	frames := []*image.NRGBA{
 		makeCharFrame(other, otherHair),
@@ -90,15 +90,15 @@ func TestInspectBaseDrift(t *testing.T) {
 	res := InspectFrames(frames, [3]uint8{255, 0, 255}, base)
 	found := false
 	for _, e := range res.Errors {
-		if strings.Contains(e, "베이스 캐릭터") {
+		if strings.Contains(e, "base character") {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("일괄 드리프트 미검출. errors=%v warnings=%v", res.Errors, res.Warnings)
+		t.Errorf("batch drift not detected. errors=%v warnings=%v", res.Errors, res.Warnings)
 	}
 
-	// 베이스와 같은 캐릭터면 오류 없어야 함
+	// the same character as the base should produce no error
 	same := []*image.NRGBA{
 		makeCharFrame(rgb{60, 120, 200}, rgb{180, 140, 40}),
 		makeCharFrame(rgb{60, 120, 200}, rgb{180, 140, 40}),
@@ -106,20 +106,20 @@ func TestInspectBaseDrift(t *testing.T) {
 	}
 	res = InspectFrames(same, [3]uint8{255, 0, 255}, base)
 	for _, e := range res.Errors {
-		if strings.Contains(e, "베이스 캐릭터") {
-			t.Errorf("동일 캐릭터가 베이스 드리프트로 오탐: %s", e)
+		if strings.Contains(e, "base character") {
+			t.Errorf("identical character falsely flagged as base drift: %s", e)
 		}
 	}
 
-	// 투명 영역이 없는 베이스(사진 등)는 검사를 건너뛰어야 함
+	// a base with no transparent region (e.g. a photo) should skip the check
 	opaque := image.NewNRGBA(image.Rect(0, 0, 64, 64))
 	for i := 3; i < len(opaque.Pix); i += 4 {
-		opaque.Pix[i] = 255 // 전체 불투명 (검정 배경)
+		opaque.Pix[i] = 255 // fully opaque (black background)
 	}
 	res = InspectFrames(frames, [3]uint8{255, 0, 255}, opaque)
 	for _, e := range res.Errors {
-		if strings.Contains(e, "베이스 캐릭터") {
-			t.Errorf("불투명 베이스에서 검사가 실행됨: %s", e)
+		if strings.Contains(e, "base character") {
+			t.Errorf("check ran on an opaque base: %s", e)
 		}
 	}
 }

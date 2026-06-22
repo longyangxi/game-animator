@@ -1,4 +1,4 @@
-// 프론트엔드 도메인 타입 정의
+// Frontend domain type definitions
 
 export interface FrameItem {
   id: string;
@@ -17,8 +17,8 @@ export type StateStatus = "idle" | "generating" | "done" | "error";
 
 export interface StateDef {
   id: string;
-  name: string; // 영문 상태명 (export용)
-  label: string; // 한글 표시명
+  name: string; // English state name (for export)
+  label: string; // display name
   frames: number;
   fps: number;
   loop: boolean;
@@ -30,12 +30,12 @@ export interface StateDef {
   warnings: string[];
   feedback: string;
   scores?: FrameScores;
-  facing?: string; // 8방향 키 (south 등, 미지정 시 방향 지시 없음)
-  dirBase?: string; // 8방향 세트의 베이스 상태명 (세트 소속일 때만)
-  mirrorOf?: string; // 미러링 소스 방향 키 (west→east 등, AI 생성 안 함)
+  facing?: string; // 8-direction key (south, etc.; no direction instruction when unset)
+  dirBase?: string; // base state name of the 8-direction set (only when part of a set)
+  mirrorOf?: string; // mirror source direction key (west→east, etc.; not AI-generated)
 }
 
-// 백엔드 sprite.DirectionInfo와 동일 구조 (ListDirections 응답)
+// Same structure as backend sprite.DirectionInfo (ListDirections response)
 export interface DirectionInfo {
   key: string;
   label: string;
@@ -45,7 +45,7 @@ export interface DirectionInfo {
   col: number;
 }
 
-// 방향 키 → 한글 라벨 변환 (목록에 없으면 키 그대로)
+// Direction key → label (returns the key as-is if not in the list)
 export function directionLabel(directions: DirectionInfo[], key: string | undefined): string {
   if (!key) return "";
   return directions.find((d) => d.key === key)?.label ?? key;
@@ -53,7 +53,7 @@ export function directionLabel(directions: DirectionInfo[], key: string | undefi
 
 export interface CharacterDef {
   image: string | null; // dataURL
-  name: string; // 내보내기 파일 프리픽스로 사용
+  name: string; // used as the export file prefix
   description: string;
   styleKey: string;
   styleCustom: string;
@@ -68,7 +68,7 @@ export interface StatePreset {
   action: string;
 }
 
-// 백엔드 sprite.PresetInfo와 동일 구조 (ListPresets 응답)
+// Same structure as backend sprite.PresetInfo (ListPresets response)
 export interface PresetInfo {
   name: string;
   label: string;
@@ -80,22 +80,22 @@ export interface PresetInfo {
 }
 
 export const STATE_PRESETS: StatePreset[] = [
-  { name: "idle", label: "대기", frames: 4, fps: 6, loop: true, action: "subtle breathing idle in place" },
-  { name: "walk", label: "걷기", frames: 6, fps: 10, loop: true, action: "side-view walking cycle facing right" },
-  { name: "run", label: "달리기", frames: 6, fps: 12, loop: true, action: "fast side-view running cycle facing right" },
-  { name: "jump", label: "점프", frames: 5, fps: 10, loop: false, action: "crouch, take off, airborne peak, land" },
-  { name: "attack", label: "공격", frames: 5, fps: 12, loop: false, action: "melee attack with wind-up, strike, recovery" },
-  { name: "hurt", label: "피격", frames: 3, fps: 10, loop: false, action: "recoil from being hit" },
-  { name: "death", label: "사망", frames: 5, fps: 8, loop: false, action: "stagger, collapse, lie flat on the ground" },
-  { name: "wave", label: "인사", frames: 4, fps: 8, loop: true, action: "friendly hand wave, body still" },
+  { name: "idle", label: "Idle", frames: 4, fps: 6, loop: true, action: "subtle breathing idle in place" },
+  { name: "walk", label: "Walk", frames: 6, fps: 10, loop: true, action: "side-view walking cycle facing right" },
+  { name: "run", label: "Run", frames: 6, fps: 12, loop: true, action: "fast side-view running cycle facing right" },
+  { name: "jump", label: "Jump", frames: 5, fps: 10, loop: false, action: "crouch, take off, airborne peak, land" },
+  { name: "attack", label: "Attack", frames: 5, fps: 12, loop: false, action: "melee attack with wind-up, strike, recovery" },
+  { name: "hurt", label: "Hurt", frames: 3, fps: 10, loop: false, action: "recoil from being hit" },
+  { name: "death", label: "Death", frames: 5, fps: 8, loop: false, action: "stagger, collapse, lie flat on the ground" },
+  { name: "wave", label: "Wave", frames: 4, fps: 8, loop: true, action: "friendly hand wave, body still" },
 ];
 
 export const STYLE_OPTIONS = [
-  { key: "pixel", label: "픽셀 아트" },
-  { key: "chibi", label: "치비" },
-  { key: "cartoon", label: "카툰" },
-  { key: "retro16", label: "16비트 레트로" },
-  { key: "custom", label: "직접 입력" },
+  { key: "pixel", label: "Pixel Art" },
+  { key: "chibi", label: "Chibi" },
+  { key: "cartoon", label: "Cartoon" },
+  { key: "retro16", label: "16-bit Retro" },
+  { key: "custom", label: "Custom" },
 ];
 
 export const CELL_SIZES = [128, 256, 512];
@@ -122,7 +122,7 @@ export function presetToState(p: StatePreset): StateDef {
   };
 }
 
-// ListPresets 카탈로그 항목을 애니메이션 상태로 변환합니다.
+// Converts a ListPresets catalog entry into an animation state.
 export function presetInfoToState(p: PresetInfo): StateDef {
   return {
     id: uid("st"),
@@ -139,10 +139,10 @@ export function presetInfoToState(p: PresetInfo): StateDef {
   };
 }
 
-// STATE_PRESETS를 PresetInfo 형태로 변환한 폴백 카탈로그 (ListPresets 실패 시 사용)
+// Fallback catalog derived from STATE_PRESETS (used when ListPresets fails)
 export const FALLBACK_PRESETS: PresetInfo[] = STATE_PRESETS.map((p) => ({
   ...p,
-  category: "기본 동작",
+  category: "Basics",
 }));
 
 export function selectedFrames(s: StateDef): FrameItem[] {

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# install.sh — PerfectPixel 스킬용 헤드리스 생성기(ppgen) 설치 스크립트.
+# install.sh — installer script for the PerfectPixel skill's headless generator (ppgen).
 #
-# 설치 우선순위:
-#   1) skill/bin/ppgen 이 이미 정상 동작하면 그대로 사용 (재설치 생략).
-#   2) GitHub Releases 에서 OS/arch 에 맞는 프리빌트 바이너리 다운로드 (Go 불필요).
-#   3) (다운로드 실패 시) Go 소스 빌드: $PERFECTPIXEL_SRC > 동봉 .src > 저장소 클론.
-# 성공 시 바이너리 절대경로를 마지막 줄(stdout)로 출력한다.
+# Install priority:
+#   1) If skill/bin/ppgen already works, use it as-is (skip reinstall).
+#   2) Download a prebuilt binary matching the OS/arch from GitHub Releases (Go not required).
+#   3) (If the download fails) build from Go source: $PERFECTPIXEL_SRC > bundled .src > repo clone.
+# On success, print the binary's absolute path as the last line (stdout).
 #
-# 환경변수:
-#   PP_VERSION   다운로드할 릴리스 태그 (기본: latest)
-#   PP_BUILD=1   다운로드를 건너뛰고 항상 소스 빌드
-#   PERFECTPIXEL_SRC  로컬 Go 소스 경로 (go.mod 포함)
+# Environment variables:
+#   PP_VERSION   Release tag to download (default: latest)
+#   PP_BUILD=1   Skip the download and always build from source
+#   PERFECTPIXEL_SRC  Local Go source path (containing go.mod)
 set -euo pipefail
 
 REPO="gykim80/perfectpixel-studio"
@@ -24,12 +24,12 @@ mkdir -p "$BIN_DIR"
 
 valid() { [ -x "$1" ] && "$1" -dump >/dev/null 2>&1; }
 
-# 1) 이미 동작하는 바이너리 재사용
+# 1) Reuse an already-working binary
 if valid "$BIN"; then
   echo "$BIN"; exit 0
 fi
 
-# OS/arch → 릴리스 자산 이름 매핑
+# Map OS/arch → release asset name
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m)"
 case "$arch" in
@@ -42,7 +42,7 @@ case "$os" in
 esac
 asset="ppgen-${os}-${arch}${ext}"
 
-# 2) 프리빌트 바이너리 다운로드 (PP_BUILD=1 이면 건너뜀)
+# 2) Download a prebuilt binary (skipped if PP_BUILD=1)
 if [ "${PP_BUILD:-0}" != "1" ]; then
   ver="${PP_VERSION:-latest}"
   if [ "$ver" = "latest" ]; then
@@ -50,7 +50,7 @@ if [ "${PP_BUILD:-0}" != "1" ]; then
   else
     url="https://github.com/${REPO}/releases/download/${ver}/${asset}"
   fi
-  echo "프리빌트 바이너리 다운로드 시도: $url" >&2
+  echo "Attempting to download prebuilt binary: $url" >&2
   tmp="$(mktemp)"
   if curl -fsSL "$url" -o "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
     chmod +x "$tmp"
@@ -58,16 +58,16 @@ if [ "${PP_BUILD:-0}" != "1" ]; then
     if valid "$BIN"; then
       echo "$BIN"; exit 0
     fi
-    echo "다운로드한 바이너리가 동작하지 않음 → 소스 빌드로 폴백" >&2
+    echo "Downloaded binary does not work → falling back to source build" >&2
   else
     rm -f "$tmp"
-    echo "프리빌트 바이너리 없음/다운로드 실패 → 소스 빌드로 폴백" >&2
+    echo "No prebuilt binary / download failed → falling back to source build" >&2
   fi
 fi
 
-# 3) 소스 빌드
+# 3) Build from source
 if ! command -v go >/dev/null 2>&1; then
-  echo "오류: 프리빌트 바이너리를 받지 못했고 Go(1.25+)도 없습니다. https://go.dev/dl/ 설치 후 재시도하세요." >&2
+  echo "Error: could not obtain a prebuilt binary, and Go (1.25+) is not installed either. Install it from https://go.dev/dl/ and try again." >&2
   exit 1
 fi
 
@@ -89,17 +89,17 @@ fi
 if [ -z "$SRC" ]; then
   SRC="$SKILL_DIR/.src"
   if [ ! -d "$SRC/.git" ]; then
-    echo "공개 저장소에서 소스 클론 중: $REPO_URL" >&2
+    echo "Cloning source from public repository: $REPO_URL" >&2
     git clone --depth 1 "$REPO_URL" "$SRC" >&2
   else
     git -C "$SRC" pull --ff-only >&2 || true
   fi
 fi
 
-echo "ppgen 빌드 중 (소스: $SRC)" >&2
+echo "Building ppgen (source: $SRC)" >&2
 ( cd "$SRC" && go build -o "$BIN" ./cmd/ppgen )
 if ! valid "$BIN"; then
-  echo "오류: 빌드에 실패했습니다." >&2
+  echo "Error: build failed." >&2
   exit 1
 fi
 echo "$BIN"

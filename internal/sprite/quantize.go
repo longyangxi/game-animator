@@ -5,10 +5,10 @@ import (
 	"sort"
 )
 
-// rgb는 양자화용 불투명 색상입니다.
+// rgb is an opaque color used for quantization.
 type rgb struct{ r, g, b uint8 }
 
-// collectOpaque는 프레임들에서 불투명 픽셀 색상을 수집합니다 (다운샘플링 포함).
+// collectOpaque collects opaque pixel colors from the frames (with downsampling).
 func collectOpaque(frames []*image.NRGBA, maxSamples int) []rgb {
 	total := 0
 	for _, f := range frames {
@@ -34,8 +34,8 @@ func collectOpaque(frames []*image.NRGBA, maxSamples int) []rgb {
 	return out
 }
 
-// BuildSharedPalette는 여러 프레임 전체에서 공유 팔레트를 추출합니다 (median-cut).
-// 애니메이션 전 프레임에 같은 팔레트를 강제하면 프레임 간 색 일관성이 크게 향상됩니다.
+// BuildSharedPalette extracts a shared palette across all frames (median-cut).
+// Forcing the same palette on every animation frame greatly improves color consistency between frames.
 func BuildSharedPalette(frames []*image.NRGBA, maxColors int) []rgb {
 	if maxColors < 2 {
 		maxColors = 2
@@ -46,7 +46,7 @@ func BuildSharedPalette(frames []*image.NRGBA, maxColors int) []rgb {
 	}
 	buckets := [][]rgb{samples}
 	for len(buckets) < maxColors {
-		// 가장 분산 범위가 큰 버킷 선택
+		// pick the bucket with the largest variance range
 		bestIdx, bestRange := -1, 0
 		bestCh := 0
 		for bi, b := range buckets {
@@ -73,7 +73,7 @@ func BuildSharedPalette(frames []*image.NRGBA, maxColors int) []rgb {
 			}
 		}
 		if bestIdx < 0 || bestRange == 0 {
-			break // 더 나눌 수 없음
+			break // cannot split any further
 		}
 		b := buckets[bestIdx]
 		sort.Slice(b, func(i, j int) bool {
@@ -110,15 +110,15 @@ func BuildSharedPalette(frames []*image.NRGBA, maxColors int) []rgb {
 		entries = append(entries, entry{rgb{uint8(sr / n), uint8(sg / n), uint8(sb / n)}, n})
 	}
 
-	// 근접 색 병합: 프레임 간 미세 색 drift(채널당 ~8 이내)를 하나의 색으로 수렴
-	const mergeThresh = 600 // colorDist2 기준 ≈ 채널당 8
+	// merge nearby colors: converge slight inter-frame color drift (~8 per channel) into a single color
+	const mergeThresh = 600 // by colorDist2 ≈ 8 per channel
 	sort.Slice(entries, func(i, j int) bool { return entries[i].n > entries[j].n })
 	merged := entries[:0]
 	for _, e := range entries {
 		absorbed := false
 		for mi := range merged {
 			if colorDist2(e.c, merged[mi].c) < mergeThresh {
-				// 가중 평균으로 흡수
+				// absorb by weighted average
 				tot := merged[mi].n + e.n
 				merged[mi].c = rgb{
 					uint8((int(merged[mi].c.r)*merged[mi].n + int(e.c.r)*e.n) / tot),
@@ -134,7 +134,7 @@ func BuildSharedPalette(frames []*image.NRGBA, maxColors int) []rgb {
 			merged = append(merged, e)
 		}
 	}
-	// 빈 버킷/팔레트 부족으로 색이 2개 미만이면 0번과 255번 회색이라도 추가
+	// if empty buckets / insufficient palette leave fewer than 2 colors, add at least black and white grays
 	if len(merged) < 2 {
 		if len(merged) == 0 {
 			merged = append(merged, entry{rgb{0, 0, 0}, 1}, entry{rgb{255, 255, 255}, 1})
@@ -151,7 +151,7 @@ func BuildSharedPalette(frames []*image.NRGBA, maxColors int) []rgb {
 
 func colorDist2(a, b rgb) int {
 	dr, dg, db := int(a.r)-int(b.r), int(a.g)-int(b.g), int(a.b)-int(b.b)
-	// 인지 가중치 (녹색 민감도 높음)
+	// perceptual weighting (higher sensitivity to green)
 	return 2*dr*dr + 4*dg*dg + 3*db*db
 }
 
@@ -169,8 +169,8 @@ func nearestColor(c rgb, palette []rgb, cache map[rgb]rgb) rgb {
 	return best
 }
 
-// ApplyPalette는 이미지의 모든 불투명 픽셀을 팔레트 최근접 색으로 치환하고
-// 알파를 0/255로 이진화합니다 (픽셀아트는 부분 투명을 쓰지 않음).
+// ApplyPalette replaces every opaque pixel in the image with the nearest palette color and
+// binarizes the alpha to 0/255 (pixel art does not use partial transparency).
 func ApplyPalette(img *image.NRGBA, palette []rgb) {
 	if len(palette) == 0 {
 		return

@@ -62,7 +62,7 @@ func TestContactJitter(t *testing.T) {
 }
 
 func TestContactNaturalVerticalOffset(t *testing.T) {
-	// 점프/수영처럼 top만 변하고 bottom은 일정한 경우 contact 손해가 적어야 함
+	// when only the top changes and the bottom stays constant (as in jumping/swimming), the contact penalty should be small
 	frames := []*image.NRGBA{
 		filledFrame(8, 20, 23, 31, 200, 100, 50),
 		filledFrame(8, 12, 23, 31, 200, 100, 50),

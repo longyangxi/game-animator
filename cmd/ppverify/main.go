@@ -1,7 +1,7 @@
-// Command ppverify는 AI 호출 없이 sample/ 의 실제 스트립 100개에 대해
-// 현재(신) 파이프라인을 그대로 재실행하여 품질을 정량 측정하고,
-// 과거 베이스라인(sample/report.json)과 비교한다.
-// 목적: 알고리즘 개선이 실데이터에서 실제 효과가 있는지 검증.
+// Command ppverify re-runs the current (new) pipeline as-is over the 100 real
+// strips in sample/ without any AI calls, quantitatively measuring quality and
+// comparing it against the past baseline (sample/report.json).
+// Purpose: verify whether algorithm improvements actually help on real data.
 package main
 
 import (
@@ -82,8 +82,8 @@ func main() {
 			fmt.Printf("decode fail %s: %v\n", sp, err)
 			continue
 		}
-		// _strip.png는 이미 배경 제거된 투명 스트립이므로 RemoveBackground를
-		// 다시 돌리지 않고 그대로 ExtractFrames에 넣는다(ppsamples scan과 동일).
+		// _strip.png is already a background-removed transparent strip, so feed it
+		// straight into ExtractFrames without re-running RemoveBackground (same as ppsamples scan).
 		ext := sprite.ExtractFrames(nimg, expected, 256, 256, 16)
 		insp := sprite.InspectFrames(ext.Frames, [3]uint8{255, 0, 255}, nil)
 		sc := sprite.ScoreFrames(ext.Frames)
@@ -113,7 +113,7 @@ func main() {
 	fmt.Printf("mean contact (new)   : %.3f\n", sumCo/n)
 	fmt.Printf("mean overall (new)   : %.3f\n", sumOv/n)
 
-	// 베이스라인 비교
+	// Baseline comparison
 	if bf, err := os.ReadFile("sample/report.json"); err == nil {
 		var bl baseline
 		if json.Unmarshal(bf, &bl) == nil && len(bl.Results) > 0 {
@@ -142,7 +142,7 @@ func main() {
 		}
 	}
 
-	// 회귀 가드: 새 파이프라인 프레임 정확도가 85% 미만이면 실패 종료
+	// Regression guard: exit with failure if new-pipeline frame accuracy is below 85%
 	if float64(hit)/n < 0.85 {
 		fmt.Printf("\nFAIL: frame accuracy below 85%%\n")
 		os.Exit(1)

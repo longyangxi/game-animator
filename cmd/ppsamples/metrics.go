@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-// magentaResidue는 마젠타에 가까운 불투명 픽셀 수를 센다(배경 제거 잔여물 지표).
+// magentaResidue counts opaque pixels close to magenta (a background-removal residue metric).
 func magentaResidue(im *image.NRGBA) int {
 	n := 0
 	for i := 0; i+3 < len(im.Pix); i += 4 {
@@ -20,8 +20,8 @@ func magentaResidue(im *image.NRGBA) int {
 	return n
 }
 
-// haloPinkish는 마젠타가 섞인 핑크빛 경계(헤일로) 불투명 픽셀 수를 센다.
-// 순수 마젠타는 아니지만 R·B가 G보다 확연히 높은(키 색조가 번진) 픽셀.
+// haloPinkish counts opaque pixels at pinkish, magenta-tinted edges (the halo).
+// Not pure magenta, but pixels where R and B are clearly higher than G (the key color has bled).
 func haloPinkish(im *image.NRGBA) int {
 	n := 0
 	for i := 0; i+3 < len(im.Pix); i += 4 {
@@ -36,7 +36,7 @@ func haloPinkish(im *image.NRGBA) int {
 	return n
 }
 
-// distinctColors는 불투명 픽셀의 서로 다른 RGB 개수를 센다(픽셀화 지표).
+// distinctColors counts the number of distinct RGB values among opaque pixels (a pixelization metric).
 func distinctColors(im *image.NRGBA) int {
 	set := map[uint32]struct{}{}
 	for i := 0; i+3 < len(im.Pix); i += 4 {
@@ -49,8 +49,8 @@ func distinctColors(im *image.NRGBA) int {
 	return len(set)
 }
 
-// edgeContent는 셀 좌우 가장자리(2px)에 닿은 불투명 픽셀 수를 센다.
-// 균등 분할이 포즈를 잘랐을 때 높게 나온다.
+// edgeContent counts opaque pixels touching the left/right edges of the cell (2px).
+// It runs high when equal splitting has cut through a pose.
 func edgeContent(im *image.NRGBA) int {
 	w, h := im.Rect.Dx(), im.Rect.Dy()
 	n := 0
@@ -64,7 +64,7 @@ func edgeContent(im *image.NRGBA) int {
 	return n
 }
 
-// torsoCenterX는 셔츠색(파랑) 픽셀의 가로 중심을 반환한다(토르소 위치).
+// torsoCenterX returns the horizontal center of shirt-colored (blue) pixels (the torso position).
 func torsoCenterX(im *image.NRGBA) float64 {
 	var sx, n float64
 	for y := 0; y < im.Rect.Dy(); y++ {
@@ -74,7 +74,7 @@ func torsoCenterX(im *image.NRGBA) float64 {
 				continue
 			}
 			r, g, b := int(im.Pix[i]), int(im.Pix[i+1]), int(im.Pix[i+2])
-			if b > 140 && b-r > 40 && g < 180 { // 셔츠 파랑 근사
+			if b > 140 && b-r > 40 && g < 180 { // approximate shirt blue
 				sx += float64(x)
 				n++
 			}
@@ -86,7 +86,7 @@ func torsoCenterX(im *image.NRGBA) float64 {
 	return sx / n
 }
 
-// stdDev는 값들의 표준편차를 반환한다(토르소 흔들림 지표).
+// stdDev returns the standard deviation of the values (a torso-jitter metric).
 func stdDev(vs []float64) float64 {
 	if len(vs) == 0 {
 		return 0
@@ -103,7 +103,7 @@ func stdDev(vs []float64) float64 {
 	return math.Sqrt(s / float64(len(vs)))
 }
 
-// colAlpha는 컬럼별 불투명 픽셀 수(알파 질량 프로파일)를 반환한다.
+// colAlpha returns the per-column opaque pixel count (the alpha mass profile).
 func colAlpha(im *image.NRGBA) []float64 {
 	w, h := im.Rect.Dx(), im.Rect.Dy()
 	p := make([]float64, w)
@@ -117,8 +117,9 @@ func colAlpha(im *image.NRGBA) []float64 {
 	return p
 }
 
-// crossingLines는 균등 N분할선(k·W/n) 중 캐릭터(콘텐츠)를 가로지르는 선의 개수를 센다.
-// projection 분할은 빈 gutter를 자르므로 0이지만, equal-split은 포즈 위를 자른다.
+// crossingLines counts how many of the equal N-division lines (k*W/n) cross the
+// character (content). Projection-based splitting cuts at empty gutters so it's
+// 0, but equal-split cuts across the pose.
 func crossingLines(im *image.NRGBA, n int) (cross int, lineMass []float64) {
 	p := colAlpha(im)
 	w := len(p)
@@ -128,7 +129,7 @@ func crossingLines(im *image.NRGBA, n int) (cross int, lineMass []float64) {
 			mx = v
 		}
 	}
-	thresh := 0.06 * mx // 최대 컬럼 질량의 6% 이상이면 "콘텐츠 위"
+	thresh := 0.06 * mx // at least 6% of the max column mass counts as "over content"
 	for k := 1; k < n; k++ {
 		x := k * w / n
 		m := p[x]
@@ -140,7 +141,7 @@ func crossingLines(im *image.NRGBA, n int) (cross int, lineMass []float64) {
 	return
 }
 
-// contentPixels는 불투명 픽셀 수를 센다.
+// contentPixels counts opaque pixels.
 func contentPixels(im *image.NRGBA) int {
 	n := 0
 	for i := 3; i < len(im.Pix); i += 4 {
@@ -151,8 +152,9 @@ func contentPixels(im *image.NRGBA) int {
 	return n
 }
 
-// frameBalance는 프레임들의 콘텐츠 픽셀 최소/최대와 (최소 대비) 불균형 비율을 반환한다.
-// 균등분할이 빈 칸이나 절반 포즈를 만들면 min이 급감해 비율이 커진다.
+// frameBalance returns the min/max content pixels across frames and the
+// imbalance ratio (relative to the min). When equal splitting produces empty
+// cells or half poses, min drops sharply and the ratio grows.
 func frameBalance(frames []*image.NRGBA) (min, max int, ratio float64) {
 	min = 1 << 30
 	for _, f := range frames {
@@ -181,7 +183,7 @@ func torsoSpread(frames []*image.NRGBA) float64 {
 	return stdDev(xs)
 }
 
-// contentCentroidX는 셀 내 불투명 픽셀의 가로 질량중심을 반환한다(색 무관).
+// contentCentroidX returns the horizontal centroid of opaque pixels in the cell (color-agnostic).
 func contentCentroidX(im *image.NRGBA) float64 {
 	var sx, n float64
 	for y := 0; y < im.Rect.Dy(); y++ {
@@ -198,7 +200,7 @@ func contentCentroidX(im *image.NRGBA) float64 {
 	return sx / n
 }
 
-// centroidSpread는 프레임별 콘텐츠 질량중심 X의 표준편차(앵커 흔들림, 색 무관).
+// centroidSpread is the standard deviation of the per-frame content centroid X (anchor jitter, color-agnostic).
 func centroidSpread(frames []*image.NRGBA) float64 {
 	var xs []float64
 	for _, f := range frames {

@@ -22,16 +22,16 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App은 Wails 애플리케이션 본체입니다.
+// App is the main body of the Wails application.
 type App struct {
 	ctx context.Context
 
 	genMu      sync.Mutex
-	genCancels map[int]context.CancelFunc // 진행 중인 생성 작업들의 취소 함수 (병렬 배치 지원)
+	genCancels map[int]context.CancelFunc // cancel functions for in-progress generation jobs (supports parallel batches)
 	genSeq     int
 }
 
-// NewApp은 새 App 인스턴스를 생성합니다.
+// NewApp creates a new App instance.
 func NewApp() *App {
 	return &App{}
 }
@@ -40,12 +40,12 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// provider는 현재 활성 프로바이더 클라이언트를 반환합니다.
+// provider returns the currently active provider client.
 func (a *App) provider() (gen.Provider, error) {
 	s := config.Load()
 	cfg := s.Cfg(s.Provider)
 	if cfg.APIKey == "" {
-		return nil, fmt.Errorf("%s API 키가 설정되지 않았습니다. 설정에서 입력해 주세요", gen.ProviderLabel(s.Provider))
+		return nil, fmt.Errorf("%s API key is not configured. Please enter it in Settings", gen.ProviderLabel(s.Provider))
 	}
 	return gen.New(s.Provider, cfg.APIKey, cfg.Model)
 }
@@ -54,9 +54,9 @@ func (a *App) emit(event string, data any) {
 	runtime.EventsEmit(a.ctx, event, data)
 }
 
-// genContext는 취소 가능한 생성용 컨텍스트를 만듭니다.
-// 병렬 배치 생성에서 여러 컨텍스트가 동시에 살아 있을 수 있으므로 각각을 추적하고,
-// 호출자가 완료 시 해제할 수 있도록 release 함수를 함께 반환합니다.
+// genContext creates a cancelable context for generation.
+// In parallel batch generation, multiple contexts may be alive at once, so each is
+// tracked and a release function is returned for the caller to free it on completion.
 func (a *App) genContext() (context.Context, func()) {
 	a.genMu.Lock()
 	defer a.genMu.Unlock()
@@ -78,7 +78,7 @@ func (a *App) genContext() (context.Context, func()) {
 	return ctx, release
 }
 
-// CancelGeneration은 진행 중인 모든 생성 작업을 취소합니다.
+// CancelGeneration cancels all in-progress generation jobs.
 func (a *App) CancelGeneration() {
 	a.genMu.Lock()
 	defer a.genMu.Unlock()
@@ -88,28 +88,28 @@ func (a *App) CancelGeneration() {
 	}
 }
 
-// friendlyErr는 취소 오류를 사용자 친화적 메시지로 바꿉니다.
+// friendlyErr converts cancellation errors into user-friendly messages.
 func friendlyErr(err error) error {
 	if errors.Is(err, context.Canceled) {
-		return errors.New("생성이 취소되었습니다")
+		return errors.New("generation was canceled")
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return errors.New("이미지 생성 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요")
+		return errors.New("image generation timed out. Please try again in a moment")
 	}
 	return err
 }
 
-// ---------- 설정 ----------
+// ---------- Settings ----------
 
-// ProviderInfo는 프로바이더별 설정 상태입니다.
+// ProviderInfo is the configuration state for a single provider.
 type ProviderInfo struct {
 	HasKey     bool     `json:"hasKey"`
 	KeyPreview string   `json:"keyPreview"`
 	Model      string   `json:"model"`
-	Models     []string `json:"models"` // 선택 가능한 모델 목록 (최신 모델이 맨 앞)
+	Models     []string `json:"models"` // list of selectable models (newest model first)
 }
 
-// SettingsInfo는 프론트엔드에 노출되는 설정 상태입니다.
+// SettingsInfo is the settings state exposed to the frontend.
 type SettingsInfo struct {
 	Provider  string                  `json:"provider"`
 	Providers map[string]ProviderInfo `json:"providers"`
@@ -122,7 +122,7 @@ func keyPreview(key string) string {
 	return ""
 }
 
-// GetSettings는 현재 설정 상태를 반환합니다 (키 원문은 노출하지 않음).
+// GetSettings returns the current settings state (the raw key is never exposed).
 func (a *App) GetSettings() SettingsInfo {
 	s := config.Load()
 	info := SettingsInfo{Provider: s.Provider, Providers: map[string]ProviderInfo{}}
@@ -142,11 +142,11 @@ func (a *App) GetSettings() SettingsInfo {
 	return info
 }
 
-// SaveProviderKey는 특정 프로바이더의 API 키를 검증 후 저장합니다.
+// SaveProviderKey validates and then saves the API key for a specific provider.
 func (a *App) SaveProviderKey(provider, key string) error {
 	key = strings.TrimSpace(key)
 	if key == "" {
-		return errors.New("API 키를 입력해 주세요")
+		return errors.New("please enter an API key")
 	}
 	c, err := gen.New(provider, key, "")
 	if err != nil {
@@ -160,37 +160,37 @@ func (a *App) SaveProviderKey(provider, key string) error {
 	return config.Save(s)
 }
 
-// SaveProviderModel은 프로바이더의 이미지 모델을 변경합니다 (빈 값이면 기본 모델로 복원).
+// SaveProviderModel changes a provider's image model (an empty value resets to the default model).
 func (a *App) SaveProviderModel(provider, model string) error {
 	switch provider {
 	case gen.ProviderGemini, gen.ProviderOpenAI, gen.ProviderOpenRouter, gen.ProviderFal, gen.ProviderBytePlus:
 	default:
-		return fmt.Errorf("지원하지 않는 프로바이더입니다: %s", provider)
+		return fmt.Errorf("unsupported provider: %s", provider)
 	}
 	model = strings.TrimSpace(model)
 	if model == gen.DefaultModelFor(provider) {
-		model = "" // 기본 모델은 빈 값으로 저장해 향후 기본값 변경을 따라가게 함
+		model = "" // store the default model as empty so future default changes are followed
 	}
 	s := config.Load()
 	s.Cfg(provider).Model = model
 	return config.Save(s)
 }
 
-// SetProvider는 활성 프로바이더를 변경합니다.
+// SetProvider changes the active provider.
 func (a *App) SetProvider(provider string) error {
 	switch provider {
 	case gen.ProviderGemini, gen.ProviderOpenAI, gen.ProviderOpenRouter, gen.ProviderFal, gen.ProviderBytePlus:
 	default:
-		return fmt.Errorf("지원하지 않는 프로바이더입니다: %s", provider)
+		return fmt.Errorf("unsupported provider: %s", provider)
 	}
 	s := config.Load()
 	s.Provider = provider
 	return config.Save(s)
 }
 
-// ---------- 세션 저장/복원 ----------
+// ---------- Session save/restore ----------
 
-// SaveSession은 현재 작업 상태(JSON)를 디스크에 저장합니다 (앱 재시작 시 복원용).
+// SaveSession writes the current work state (JSON) to disk (for restoring on app restart).
 func (a *App) SaveSession(data string) error {
 	path, err := config.SessionPath()
 	if err != nil {
@@ -199,7 +199,7 @@ func (a *App) SaveSession(data string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	// 임시 파일에 쓴 뒤 교체해 손상 방지
+	// write to a temp file then swap it in to prevent corruption
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, []byte(data), 0o600); err != nil {
 		return err
@@ -207,7 +207,7 @@ func (a *App) SaveSession(data string) error {
 	return os.Rename(tmp, path)
 }
 
-// LoadSession은 저장된 작업 세션 JSON을 반환합니다 (없으면 빈 문자열).
+// LoadSession returns the saved work session JSON (empty string if none exists).
 func (a *App) LoadSession() string {
 	path, err := config.SessionPath()
 	if err != nil {
@@ -220,7 +220,7 @@ func (a *App) LoadSession() string {
 	return string(data)
 }
 
-// ClearSession은 저장된 작업 세션을 삭제합니다.
+// ClearSession deletes the saved work session.
 func (a *App) ClearSession() error {
 	path, err := config.SessionPath()
 	if err != nil {
@@ -233,14 +233,14 @@ func (a *App) ClearSession() error {
 	return nil
 }
 
-// ---------- 이미지 입출력 헬퍼 ----------
+// ---------- Image I/O helpers ----------
 
 var dataURLRe = regexp.MustCompile(`^data:image/[a-zA-Z+.-]+;base64,`)
 
 func decodeDataURL(dataURL string) ([]byte, error) {
 	m := dataURLRe.FindString(dataURL)
 	if m == "" {
-		return nil, errors.New("올바른 이미지 데이터가 아닙니다")
+		return nil, errors.New("not valid image data")
 	}
 	return base64.StdEncoding.DecodeString(dataURL[len(m):])
 }
@@ -256,28 +256,28 @@ func pngDataURL(img image.Image) (string, error) {
 func decodeImage(data []byte) (image.Image, error) {
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("이미지 디코딩 실패: %w", err)
+		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 	return img, nil
 }
 
-// PickImage는 파일 선택 대화상자를 열고 선택된 이미지를 dataURL로 반환합니다.
+// PickImage opens a file selection dialog and returns the chosen image as a dataURL.
 func (a *App) PickImage() (string, error) {
 	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "베이스 이미지 선택",
+		Title: "Select base image",
 		Filters: []runtime.FileFilter{
-			{DisplayName: "이미지 (*.png;*.jpg;*.jpeg;*.webp)", Pattern: "*.png;*.jpg;*.jpeg;*.webp"},
+			{DisplayName: "Images (*.png;*.jpg;*.jpeg;*.webp)", Pattern: "*.png;*.jpg;*.jpeg;*.webp"},
 		},
 	})
 	if err != nil {
 		return "", err
 	}
 	if path == "" {
-		return "", nil // 취소
+		return "", nil // canceled
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("파일 읽기 실패: %w", err)
+		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 	img, err := decodeImage(data)
 	if err != nil {
@@ -286,19 +286,19 @@ func (a *App) PickImage() (string, error) {
 	return pngDataURL(img)
 }
 
-// ---------- 생성 파이프라인 ----------
+// ---------- Generation pipeline ----------
 
-// GenerateCharacterArgs는 텍스트 → 베이스 캐릭터 생성 요청입니다.
+// GenerateCharacterArgs is a text → base character generation request.
 type GenerateCharacterArgs struct {
 	Description string `json:"description"`
 	StyleKey    string `json:"styleKey"`
 	StyleCustom string `json:"styleCustom"`
 }
 
-// GenerateCharacter는 설명만으로 베이스 캐릭터 이미지를 생성합니다.
+// GenerateCharacter generates a base character image from a description alone.
 func (a *App) GenerateCharacter(args GenerateCharacterArgs) (string, error) {
 	if strings.TrimSpace(args.Description) == "" {
-		return "", errors.New("캐릭터 설명을 입력해 주세요")
+		return "", errors.New("please enter a character description")
 	}
 	style := sprite.ResolveStyle(args.StyleKey, args.StyleCustom)
 	prompt := sprite.BuildCharacterPrompt(args.Description, style)
@@ -307,10 +307,10 @@ func (a *App) GenerateCharacter(args GenerateCharacterArgs) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// 종료 시 진행 표시 제거
+	// clear the progress indicator on exit
 	defer a.emit("progress", map[string]any{"phase": "idle", "message": ""})
 
-	a.emit("progress", map[string]any{"phase": "character", "message": "캐릭터 생성 중..."})
+	a.emit("progress", map[string]any{"phase": "character", "message": "Generating character..."})
 	genCtx, releaseGen := a.genContext()
 	defer releaseGen()
 	raw, err := p.GenerateImage(genCtx, prompt, nil, "1:1")
@@ -321,7 +321,7 @@ func (a *App) GenerateCharacter(args GenerateCharacterArgs) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// 배경 제거된 미리보기 제공
+	// provide a background-removed preview
 	clean := sprite.RemoveBackground(img)
 	if n := sprite.PaletteSizeForStyle(args.StyleKey); n > 0 {
 		single := []*image.NRGBA{clean}
@@ -332,7 +332,7 @@ func (a *App) GenerateCharacter(args GenerateCharacterArgs) (string, error) {
 	return pngDataURL(clean)
 }
 
-// GenerateStateArgs는 상태별 스트립 생성 요청입니다.
+// GenerateStateArgs is a per-state strip generation request.
 type GenerateStateArgs struct {
 	BaseImage   string           `json:"baseImage"` // dataURL
 	Description string           `json:"description"`
@@ -341,11 +341,11 @@ type GenerateStateArgs struct {
 	CellSize    int              `json:"cellSize"`
 	SafeMargin  int              `json:"safeMargin"`
 	Feedback    string           `json:"feedback"`
-	RefStrip    string           `json:"refStrip"` // 정면(south) 스트립 dataURL — 방향 세트 생성 시 모션 참조용
+	RefStrip    string           `json:"refStrip"` // front (south) strip dataURL — used as motion reference when generating directional sets
 	State       sprite.StateSpec `json:"state"`
 }
 
-// StateResult는 상태 생성 결과입니다.
+// StateResult is the result of a state generation.
 type StateResult struct {
 	Name     string             `json:"name"`
 	RawStrip string             `json:"rawStrip"`
@@ -356,16 +356,16 @@ type StateResult struct {
 	Scores   sprite.ScoreResult `json:"scores"`
 }
 
-// GenerateState는 한 상태의 스트립을 생성하고 프레임을 추출합니다.
+// GenerateState generates the strip for one state and extracts its frames.
 func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 	res := StateResult{Name: args.State.Name, Expected: args.State.Frames}
 
 	if args.State.Frames < 1 || args.State.Frames > 10 {
-		return res, errors.New("프레임 수는 1~10 사이여야 합니다")
+		return res, errors.New("the frame count must be between 1 and 10")
 	}
 	baseRaw, err := decodeDataURL(args.BaseImage)
 	if err != nil {
-		return res, fmt.Errorf("베이스 이미지 오류: %w", err)
+		return res, fmt.Errorf("base image error: %w", err)
 	}
 	cellSize := args.CellSize
 	if cellSize <= 0 {
@@ -384,8 +384,8 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 		return res, err
 	}
 
-	// 베이스 캐릭터 정체성 검사용 (투명 배경일 때만 InspectFrames가 사용).
-	// 뒷면 계열 방향은 정면 베이스와 색 구성이 달라 오탐하므로 검사를 건너뜁니다.
+	// for base-character identity checks (used by InspectFrames only when the background is transparent).
+	// back-facing directions have a different color makeup than the front base, causing false positives, so we skip the check.
 	var baseN *image.NRGBA
 	if !sprite.IsBackFacing(args.State.Facing) {
 		if bimg, err := decodeImage(baseRaw); err == nil {
@@ -393,7 +393,7 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 		}
 	}
 
-	// 생성 참조 이미지: 베이스 캐릭터 + (선택) 정면 스트립
+	// generation reference images: base character + (optional) front strip
 	refs := [][]byte{baseRaw}
 	if strings.TrimSpace(args.RefStrip) != "" {
 		if refRaw, err := decodeDataURL(args.RefStrip); err == nil {
@@ -401,7 +401,7 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 		}
 	}
 
-	// 완벽한 프레임 수가 나올 때까지 자동 재시도 (최대 3회)
+	// automatically retry until the exact frame count is produced (up to 3 times)
 	const maxAttempts = 3
 	expected := args.State.Frames
 	feedback := args.Feedback
@@ -418,19 +418,19 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 			prompt += "\nMotion reference: the second attached image is the FRONT-view animation strip of this same character performing this exact action. Reproduce the same motion timing and pose phases frame by frame, but viewed from the required facing direction above.\n"
 		}
 
-		msg := "AI 프레임 생성 중..."
+		msg := "Generating AI frames..."
 		if attempt > 1 {
-			msg = fmt.Sprintf("프레임 수 보정 재생성 중... (%d/%d)", attempt, maxAttempts)
+			msg = fmt.Sprintf("Regenerating to correct frame count... (%d/%d)", attempt, maxAttempts)
 		}
 		a.emit("progress", map[string]any{"phase": "generate", "state": args.State.Name, "message": msg})
 
 		stripRaw, err := p.GenerateImage(genCtx, prompt, refs, aspect)
 		if err != nil {
 			lastErr = friendlyErr(err)
-			break // API 오류/취소는 재시도 의미 없음 (클라이언트가 자체 재시도함)
+			break // no point retrying API errors/cancellations (the client retries on its own)
 		}
 
-		a.emit("progress", map[string]any{"phase": "extract", "state": args.State.Name, "message": "배경 제거 및 프레임 추출 중..."})
+		a.emit("progress", map[string]any{"phase": "extract", "state": args.State.Name, "message": "Removing background and extracting frames..."})
 		stripImg, err := decodeImage(stripRaw)
 		if err != nil {
 			lastErr = err
@@ -445,10 +445,10 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 			cand.RawStrip = rawURL
 		}
 		extracted := sprite.ExtractFrames(clean, expected, cellSize, cellSize, margin)
-		// 프레임별 품질 검사는 양자화 전 원본 프레임에 수행 (양자화로 미세한
-		// 정체성 차이가 뭉개지면 drift 감지 민감도가 떨어짐)
+		// per-frame quality checks run on the original frames before quantization (quantization
+		// can smear out subtle identity differences, reducing drift-detection sensitivity)
 		insp := sprite.InspectFrames(extracted.Frames, bgKey, baseN)
-		// 픽셀아트 스타일이면 공유 팔레트 양자화 + 픽셀 그리드 스냅으로 "진짜" 픽셀아트화
+		// for pixel-art styles, apply shared-palette quantization + pixel-grid snapping to make it "true" pixel art
 		sprite.PixelPostProcess(extracted.Frames, sprite.PaletteSizeForStyle(args.StyleKey))
 		cand.Found = extracted.Found
 		cand.Warnings = extracted.Warnings
@@ -462,28 +462,28 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 		cand.Warnings = append(cand.Warnings, insp.Errors...)
 		cand.Warnings = append(cand.Warnings, insp.Warnings...)
 		cand.Scores = sprite.ScoreFrames(extracted.Frames)
-		// 인접 프레임 변화가 거의 없으면(사실상 정지) 비차단 경고.
-		// 임계값 0.01은 실측 기반: 의도적으로 미동이 적은 meditate(~1.5%)도 통과시키고
-		// 0.01 미만, 즉 프레임이 사실상 동일한 "애니메이션이 전혀 움직이지 않는" 결함만 잡습니다.
+		// if adjacent frames barely change (effectively static), emit a non-blocking warning.
+		// the 0.01 threshold is measurement-based: it still passes intentionally low-motion poses like meditate (~1.5%)
+		// and only catches the "animation doesn't move at all" defect where frames below 0.01 are virtually identical.
 		if cand.Found >= 2 && sprite.MotionPresence(extracted.Frames) < 0.01 {
 			cand.Warnings = append(cand.Warnings,
-				"프레임 간 움직임이 거의 없습니다. 동작이 더 분명하게 드러나도록 동작 설명을 보강해 재생성하는 것을 권장합니다.")
+				"There is almost no movement between frames. Consider enriching the motion description so the action is clearer and regenerating.")
 		}
 		errCount := len(insp.Errors)
 
-		// 프레임 수가 정확하고 심각한 품질 문제가 없으면 즉시 성공
+		// succeed immediately if the frame count is exact and there are no serious quality issues
 		if cand.Found == expected && insp.Ok() {
 			saveGalleryFrames(args.State.Name, extracted.Frames)
 			return cand, nil
 		}
-		// 최선 후보 갱신: 프레임 수 우선, 같으면 오류 적은 쪽
+		// update the best candidate: frame count first, then fewer errors on a tie
 		score := cand.Found*100 - errCount*10
 		if score > bestScore {
 			best, bestScore, bestImgs = cand, score, extracted.Frames
 		}
 		lastErr = nil
 
-		// 다음 시도용 보정 피드백 (사용자 피드백 유지 + 측정 기반 보정 지시)
+		// correction feedback for the next attempt (keep the user's feedback + add measurement-based correction instructions)
 		var fixes []string
 		if cand.Found != expected {
 			fixes = append(fixes, fmt.Sprintf(
@@ -501,10 +501,10 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 			feedback = auto
 		}
 
-		// 마지막 시도 직전 메시지 갱신용: 품질 보정 재시도임을 표시
+		// update the message before the final attempt: indicate this is a quality-correction retry
 		if cand.Found == expected && errCount > 0 && attempt < maxAttempts {
 			a.emit("progress", map[string]any{"phase": "generate", "state": args.State.Name,
-				"message": fmt.Sprintf("품질 보정 재생성 중... (%d/%d)", attempt+1, maxAttempts)})
+				"message": fmt.Sprintf("Regenerating to improve quality... (%d/%d)", attempt+1, maxAttempts)})
 		}
 	}
 
@@ -512,38 +512,38 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 		if lastErr != nil {
 			return res, lastErr
 		}
-		return res, errors.New("스프라이트 프레임을 추출하지 못했습니다. 캐릭터 설명을 더 구체적으로 작성해 보세요")
+		return res, errors.New("could not extract sprite frames. Try writing a more specific character description")
 	}
 	if best.Found != expected {
 		best.Warnings = append(best.Warnings,
-			fmt.Sprintf("자동 재시도 후에도 프레임 수가 다릅니다 (요청 %d개 → 추출 %d개). 가장 근접한 결과를 표시합니다.", expected, best.Found))
+			fmt.Sprintf("The frame count still differs after automatic retries (requested %d → extracted %d). Showing the closest result.", expected, best.Found))
 	} else {
 		best.Warnings = append(best.Warnings,
-			"자동 재시도 후에도 일부 품질 문제가 남아 있습니다. 프레임을 확인하고 필요하면 피드백과 함께 재생성해 주세요.")
+			"Some quality issues remain even after automatic retries. Review the frames and, if needed, regenerate with feedback.")
 	}
 	saveGalleryFrames(args.State.Name, bestImgs)
 	return best, nil
 }
 
-// ---------- 8방향 세트 ----------
+// ---------- 8-direction set ----------
 
-// ListDirections는 8방향 메타데이터 목록을 반환합니다 (3x3 그리드 순서).
+// ListDirections returns the list of 8-direction metadata (in 3x3 grid order).
 func (a *App) ListDirections() []sprite.DirectionInfo {
 	return sprite.ListDirections()
 }
 
-// ListPresets는 100개 상황 키워드 카탈로그를 반환합니다 (프리셋 선택 UI용).
+// ListPresets returns the catalog of 100 situation keywords (for the preset selection UI).
 func (a *App) ListPresets() []sprite.PresetInfo {
 	return sprite.ListPresets()
 }
 
-// MirrorFrames는 프레임들을 좌우 반전합니다 (east→west 등 미러 방향 생성용).
+// MirrorFrames flips frames horizontally (for generating mirrored directions like east→west).
 func (a *App) MirrorFrames(frames []string) ([]string, error) {
 	out := make([]string, 0, len(frames))
 	for i, fu := range frames {
 		raw, err := decodeDataURL(fu)
 		if err != nil {
-			return nil, fmt.Errorf("프레임 %d 디코딩 실패: %w", i+1, err)
+			return nil, fmt.Errorf("failed to decode frame %d: %w", i+1, err)
 		}
 		img, err := decodeImage(raw)
 		if err != nil {
@@ -558,27 +558,27 @@ func (a *App) MirrorFrames(frames []string) ([]string, error) {
 	return out, nil
 }
 
-// ---------- 내보내기 ----------
+// ---------- Export ----------
 
-// ExportState는 내보내기용 상태 데이터입니다.
+// ExportState is the per-state data for export.
 type ExportState struct {
 	Name   string   `json:"name"`
 	FPS    int      `json:"fps"`
 	Loop   bool     `json:"loop"`
-	Frames []string `json:"frames"` // 선택/정렬된 dataURL
+	Frames []string `json:"frames"` // selected/ordered dataURLs
 }
 
-// ExportArgs는 프로젝트 내보내기 요청입니다.
+// ExportArgs is a project export request.
 type ExportArgs struct {
 	Character string        `json:"character"`
 	CellSize  int           `json:"cellSize"`
 	States    []ExportState `json:"states"`
 }
 
-// ExportProject는 디렉토리를 선택받아 스프라이트시트/매니페스트/GIF/프레임을 저장합니다.
+// ExportProject prompts for a directory and saves the sprite sheet, manifest, GIFs, and frames.
 func (a *App) ExportProject(args ExportArgs) (string, error) {
 	if len(args.States) == 0 {
-		return "", errors.New("내보낼 애니메이션이 없습니다")
+		return "", errors.New("there are no animations to export")
 	}
 	cellSize := args.CellSize
 	if cellSize <= 0 {
@@ -586,13 +586,13 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 	}
 
 	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "내보낼 폴더 선택",
+		Title: "Select export folder",
 	})
 	if err != nil {
 		return "", err
 	}
 	if dir == "" {
-		return "", nil // 취소
+		return "", nil // canceled
 	}
 
 	charName := strings.TrimSpace(args.Character)
@@ -606,9 +606,9 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 	}
 
 	defer a.emit("progress", map[string]any{"phase": "idle", "message": ""})
-	a.emit("progress", map[string]any{"phase": "export", "message": "스프라이트시트·GIF 내보내는 중..."})
+	a.emit("progress", map[string]any{"phase": "export", "message": "Exporting sprite sheet and GIFs..."})
 
-	// 상태 프레임 디코딩
+	// decode state frames
 	var stateFrames []sprite.StateFrames
 	for _, st := range args.States {
 		if len(st.Frames) == 0 {
@@ -620,7 +620,7 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 		for _, fu := range st.Frames {
 			raw, err := decodeDataURL(fu)
 			if err != nil {
-				return "", fmt.Errorf("%s 프레임 디코딩 실패: %w", st.Name, err)
+				return "", fmt.Errorf("failed to decode %s frame: %w", st.Name, err)
 			}
 			img, err := decodeImage(raw)
 			if err != nil {
@@ -631,13 +631,13 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 		stateFrames = append(stateFrames, sf)
 	}
 	if len(stateFrames) == 0 {
-		return "", errors.New("내보낼 프레임이 없습니다")
+		return "", errors.New("there are no frames to export")
 	}
 
-	// 파일명 프리픽스: 캐릭터별 산출물이 섞여도 구분되도록 모든 파일 앞에 캐릭터 이름을 붙인다.
+	// filename prefix: prepend the character name to every file so outputs from different characters stay distinct when mixed.
 	prefix := safeName + "-"
 
-	// 1) 스프라이트시트 + 매니페스트
+	// 1) sprite sheet + manifest
 	sheet, manifest := sprite.ComposeAtlas(safeName, stateFrames, cellSize, cellSize)
 	if err := writePNG(filepath.Join(outDir, prefix+"sprite-sheet.png"), sheet); err != nil {
 		return "", err
@@ -649,7 +649,7 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 	if err := os.WriteFile(filepath.Join(outDir, prefix+"manifest.json"), manifestJSON, 0o644); err != nil {
 		return "", err
 	}
-	// Aseprite 호환 JSON (Phaser/Unity/Godot 임포터용)
+	// Aseprite-compatible JSON (for Phaser/Unity/Godot importers)
 	aseJSON, err := sprite.BuildAsepriteJSON(manifest)
 	if err != nil {
 		return "", err
@@ -658,7 +658,7 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 		return "", err
 	}
 
-	// 2) 상태별 GIF + 개별 프레임 PNG
+	// 2) per-state GIF + individual frame PNGs
 	for _, sf := range stateFrames {
 		stateDir := filepath.Join(outDir, "frames", sanitizeName(sf.Spec.Name))
 		if err := os.MkdirAll(stateDir, 0o755); err != nil {
@@ -672,7 +672,7 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 		stateName := sanitizeName(sf.Spec.Name)
 		gifBytes, err := sprite.EncodeGIF(sf.Frames, sf.Spec.FPS, sf.Spec.Loop)
 		if err != nil {
-			return "", fmt.Errorf("%s GIF 인코딩 실패: %w", sf.Spec.Name, err)
+			return "", fmt.Errorf("failed to encode %s GIF: %w", sf.Spec.Name, err)
 		}
 		gifDir := filepath.Join(outDir, "gif")
 		if err := os.MkdirAll(gifDir, 0o755); err != nil {
@@ -681,10 +681,10 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 		if err := os.WriteFile(filepath.Join(gifDir, prefix+stateName+".gif"), gifBytes, 0o644); err != nil {
 			return "", err
 		}
-		// APNG: 풀 알파 지원 (GIF의 1-bit 투명도 한계 보완)
+		// APNG: full alpha support (compensates for GIF's 1-bit transparency limitation)
 		apngBytes, err := sprite.EncodeAPNG(sf.Frames, sf.Spec.FPS, sf.Spec.Loop)
 		if err != nil {
-			return "", fmt.Errorf("%s APNG 인코딩 실패: %w", sf.Spec.Name, err)
+			return "", fmt.Errorf("failed to encode %s APNG: %w", sf.Spec.Name, err)
 		}
 		apngDir := filepath.Join(outDir, "apng")
 		if err := os.MkdirAll(apngDir, 0o755); err != nil {
@@ -698,7 +698,7 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 	return outDir, nil
 }
 
-// RevealInFinder는 내보낸 폴더를 파일 탐색기에서 엽니다.
+// RevealInFinder opens the exported folder in the file explorer.
 func (a *App) RevealInFinder(path string) {
 	runtime.BrowserOpenURL(a.ctx, "file://"+path)
 }

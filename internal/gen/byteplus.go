@@ -14,19 +14,19 @@ import (
 	"time"
 )
 
-// bytePlusEndpoint은 BytePlus ModelArk 이미지 생성(Seedream) API 주소입니다.
+// bytePlusEndpoint is the URL of the BytePlus ModelArk image generation (Seedream) API.
 const bytePlusEndpoint = "https://ark.ap-southeast.bytepluses.com/api/v3/images/generations"
 
-// BytePlus는 BytePlus ModelArk(Seedream) 이미지 생성 클라이언트입니다.
+// BytePlus is a BytePlus ModelArk (Seedream) image generation client.
 type BytePlus struct {
 	APIKey string
-	Model  string // 예: seedream-4-0-250828
+	Model  string // e.g. seedream-4-0-250828
 	HTTP   *http.Client
 
-	endpoint string // 테스트용 오버라이드 (빈 값이면 bytePlusEndpoint)
+	endpoint string // test override (uses bytePlusEndpoint when empty)
 }
 
-// NewBytePlus는 새 BytePlus 클라이언트를 생성합니다.
+// NewBytePlus creates a new BytePlus client.
 func NewBytePlus(apiKey, model string) *BytePlus {
 	if model == "" {
 		model = DefaultModelFor(ProviderBytePlus)
@@ -41,7 +41,7 @@ func NewBytePlus(apiKey, model string) *BytePlus {
 type bpRequest struct {
 	Model                     string   `json:"model"`
 	Prompt                    string   `json:"prompt"`
-	Image                     []string `json:"image,omitempty"` // 참조/편집 이미지 (data URL)
+	Image                     []string `json:"image,omitempty"` // reference/edit images (data URL)
 	Size                      string   `json:"size,omitempty"`
 	ResponseFormat            string   `json:"response_format"`
 	Watermark                 bool     `json:"watermark"`
@@ -59,15 +59,15 @@ type bpResponse struct {
 	} `json:"error"`
 }
 
-// GenerateImage는 BytePlus Seedream으로 이미지를 생성합니다.
+// GenerateImage generates an image with BytePlus Seedream.
 func (c *BytePlus) GenerateImage(ctx context.Context, prompt string, refImages [][]byte, aspectRatio string) ([]byte, error) {
 	if c.APIKey == "" {
-		return nil, errors.New("BytePlus API 키가 설정되지 않았습니다. 설정에서 입력해 주세요")
+		return nil, errors.New("BytePlus API key is not set. Please enter it in the settings")
 	}
 
 	reqData := bpRequest{
 		Model: c.Model,
-		// 종횡비 파라미터가 무시되는 경우를 대비해 프롬프트 힌트도 함께 전달
+		// Also pass a prompt hint in case the aspect ratio parameter is ignored.
 		Prompt:                    prompt + "\n\n" + aspectHint(aspectRatio),
 		Size:                      bpSizeFor(aspectRatio),
 		ResponseFormat:            "b64_json",
@@ -81,7 +81,7 @@ func (c *BytePlus) GenerateImage(ctx context.Context, prompt string, refImages [
 
 	body, err := json.Marshal(reqData)
 	if err != nil {
-		return nil, fmt.Errorf("요청 직렬화 실패: %w", err)
+		return nil, fmt.Errorf("failed to serialize request: %w", err)
 	}
 
 	var lastErr error
@@ -123,13 +123,13 @@ func (c *BytePlus) doRequest(ctx context.Context, body []byte) (img []byte, retr
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return nil, true, fmt.Errorf("네트워크 오류: %w", err)
+		return nil, true, fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 	if err != nil {
-		return nil, true, fmt.Errorf("응답 읽기 실패: %w", err)
+		return nil, true, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	var parsed bpResponse
@@ -138,21 +138,21 @@ func (c *BytePlus) doRequest(ctx context.Context, body []byte) (img []byte, retr
 	if resp.StatusCode != http.StatusOK {
 		retryable = resp.StatusCode == 429 || resp.StatusCode >= 500
 		if parsed.Error != nil && parsed.Error.Message != "" {
-			return nil, retryable, fmt.Errorf("BytePlus 오류 (%d): %s", resp.StatusCode, parsed.Error.Message)
+			return nil, retryable, fmt.Errorf("BytePlus error (%d): %s", resp.StatusCode, parsed.Error.Message)
 		}
-		return nil, retryable, fmt.Errorf("BytePlus 오류 (HTTP %d)", resp.StatusCode)
+		return nil, retryable, fmt.Errorf("BytePlus error (HTTP %d)", resp.StatusCode)
 	}
 	if parsed.Error != nil && parsed.Error.Message != "" {
-		return nil, true, fmt.Errorf("BytePlus 오류: %s", parsed.Error.Message)
+		return nil, true, fmt.Errorf("BytePlus error: %s", parsed.Error.Message)
 	}
 	if len(parsed.Data) == 0 {
-		return nil, true, errors.New("응답에 이미지가 없습니다")
+		return nil, true, errors.New("the response contains no image")
 	}
 	d := parsed.Data[0]
 	if d.B64JSON != "" {
 		data, err := base64.StdEncoding.DecodeString(d.B64JSON)
 		if err != nil {
-			return nil, false, fmt.Errorf("이미지 디코딩 실패: %w", err)
+			return nil, false, fmt.Errorf("failed to decode image: %w", err)
 		}
 		return data, false, nil
 	}
@@ -163,20 +163,20 @@ func (c *BytePlus) doRequest(ctx context.Context, body []byte) (img []byte, retr
 		}
 		return data, false, nil
 	}
-	return nil, true, errors.New("응답에 이미지가 없습니다")
+	return nil, true, errors.New("the response contains no image")
 }
 
-// ValidateKey는 BytePlus 키 형식을 확인합니다 (경량 검증 엔드포인트가 없음).
+// ValidateKey checks the BytePlus key format (there is no lightweight validation endpoint).
 func (c *BytePlus) ValidateKey(_ context.Context) error {
 	key := strings.TrimSpace(c.APIKey)
 	if len(key) < 10 {
-		return errors.New("API 키가 너무 짧습니다")
+		return errors.New("the API key is too short")
 	}
 	return nil
 }
 
-// bpSizeFor는 종횡비를 Seedream이 허용하는 픽셀 크기(WxH)로 변환합니다.
-// 각 변은 [1280, 4096] 범위로 제한됩니다.
+// bpSizeFor converts an aspect ratio into a pixel size (WxH) allowed by Seedream.
+// Each side is clamped to the [1280, 4096] range.
 func bpSizeFor(aspectRatio string) string {
 	const (
 		minSide = 1280
@@ -186,7 +186,7 @@ func bpSizeFor(aspectRatio string) string {
 	if w <= 0 || h <= 0 {
 		return "2048x2048"
 	}
-	// 긴 변을 maxSide로 맞춘 뒤 짧은 변을 비율대로 계산하고 범위로 클램프
+	// Fit the long side to maxSide, then compute the short side proportionally and clamp to range.
 	var pw, ph int
 	if w >= h {
 		pw = maxSide
@@ -207,7 +207,7 @@ func bpSizeFor(aspectRatio string) string {
 	return strconv.Itoa(clamp(pw)) + "x" + strconv.Itoa(clamp(ph))
 }
 
-// parseAspect는 "W:H" 문자열을 정수 비율로 파싱합니다 (실패 시 0,0).
+// parseAspect parses a "W:H" string into an integer ratio (returns 0,0 on failure).
 func parseAspect(aspectRatio string) (int, int) {
 	a, b, ok := strings.Cut(strings.TrimSpace(aspectRatio), ":")
 	if !ok {

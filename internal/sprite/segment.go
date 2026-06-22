@@ -2,15 +2,16 @@ package sprite
 
 import "image"
 
-// 스트립 → 프레임 분할: 연결요소(flood-fill)가 아니라 수직 알파 투영 프로파일을
-// 사용합니다. 컬럼별 알파 질량의 골(gutter)로 자연 포즈 수를 세고, 포즈가 닿아
-// 골이 없을 때는 동적계획법(DP)으로 "내용을 가장 적게 가르는" expected-1개의 컷을
-// 강제로 찾습니다. OCR 라인/단어 분리에서 쓰는 projection-profile + optimal-cut 기법.
+// Strip → frame segmentation: uses a vertical alpha projection profile rather than connected
+// components (flood-fill). It counts the natural number of poses from the gutters (valleys) of
+// per-column alpha mass, and when poses touch and there is no gutter, it uses dynamic
+// programming (DP) to force expected-1 cuts that "split the least content." This is the
+// projection-profile + optimal-cut technique used in OCR line/word segmentation.
 
-// colSpan은 스트립 좌표계의 컬럼 구간 [start, end)입니다.
+// colSpan is a column interval [start, end) in the strip coordinate system.
 type colSpan struct{ start, end int }
 
-// projectAlpha는 컬럼별 알파 질량 P[x] = Σ_y α(x,y) 를 계산합니다.
+// projectAlpha computes the per-column alpha mass P[x] = Σ_y α(x,y).
 func projectAlpha(img *image.NRGBA) []float64 {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	p := make([]float64, w)
@@ -24,7 +25,7 @@ func projectAlpha(img *image.NRGBA) []float64 {
 	return p
 }
 
-// smoothProfile은 박스 이동평균으로 프로파일을 평활합니다 (압축 잡음/얇은 틈 억제).
+// smoothProfile smooths the profile with a box moving average (suppresses compression noise/thin gaps).
 func smoothProfile(p []float64, win int) []float64 {
 	if win < 1 || len(p) == 0 {
 		return p
@@ -55,8 +56,8 @@ func maxOf(p []float64) float64 {
 	return m
 }
 
-// contentRuns는 P가 eps를 넘는 연속 구간(포즈)을 찾습니다.
-// minW보다 좁거나 봉우리가 peakMin 미만인 구간은 잡티로 보고 버립니다.
+// contentRuns finds the contiguous spans (poses) where P exceeds eps.
+// Spans narrower than minW or with a peak below peakMin are treated as speckle and discarded.
 func contentRuns(p []float64, eps, peakMin float64, minW int) []colSpan {
 	var runs []colSpan
 	i := 0
@@ -82,7 +83,7 @@ func contentRuns(p []float64, eps, peakMin float64, minW int) []colSpan {
 	return runs
 }
 
-// runMass는 구간 내 알파 질량 합입니다.
+// runMass is the sum of alpha mass within the span.
 func runMass(p []float64, s colSpan) float64 {
 	var m float64
 	for x := s.start; x < s.end && x < len(p); x++ {
@@ -91,8 +92,8 @@ func runMass(p []float64, s colSpan) float64 {
 	return m
 }
 
-// dropMinorRuns는 최대 런 질량의 frac 미만인 런(원거리 잔여물/잡티)을 제거합니다.
-// 옛 연결요소 방식의 "최대 blob 면적 대비 시드 임계값" 가드와 같은 취지입니다.
+// dropMinorRuns removes runs below frac of the maximum run mass (distant residue/speckle).
+// It serves the same purpose as the old connected-component "seed threshold relative to max blob area" guard.
 func dropMinorRuns(p []float64, runs []colSpan, frac float64) []colSpan {
 	if len(runs) <= 1 {
 		return runs
@@ -113,9 +114,9 @@ func dropMinorRuns(p []float64, runs []colSpan, frac float64) []colSpan {
 	return out
 }
 
-// dpNCut은 [x0,x1) 구간을 정확히 n개 세그먼트로 나누는 n-1개 컷 컬럼을 찾습니다.
-// 비용 = Σ P[cut] (질량이 적은 곳을 자르는 게 저렴) + 폭 정규화(이상폭에서 벗어날수록 벌점).
-// 닿아 있는 포즈를 강제로 expected개로 분리할 때 사용합니다.
+// dpNCut finds the n-1 cut columns that divide [x0,x1) into exactly n segments.
+// cost = Σ P[cut] (cutting where mass is low is cheap) + width regularization (penalty for deviating from the ideal width).
+// Used to force touching poses into expected segments.
 func dpNCut(p []float64, x0, x1, n int) []int {
 	if n <= 1 || x1-x0 < n {
 		return nil
@@ -126,7 +127,7 @@ func dpNCut(p []float64, x0, x1, n int) []int {
 	if minW < 2 {
 		minW = 2
 	}
-	const lambda = 0.0015 // 폭 정규화 가중 (질량 비용 대비)
+	const lambda = 0.0015 // width regularization weight (relative to mass cost)
 
 	cuts := n - 1
 	type cell struct {
@@ -141,7 +142,7 @@ func dpNCut(p []float64, x0, x1, n int) []int {
 			dp[k][x].prev = -1
 		}
 	}
-	dp[0][x0].cost = 0 // 가상 시작 경계
+	dp[0][x0].cost = 0 // virtual start boundary
 	for k := 1; k <= cuts; k++ {
 		lo := x0 + (k-1)*minW
 		for x := x0 + k*minW; x <= x1-(cuts-k+1)*minW; x++ {
@@ -183,9 +184,9 @@ func dpNCut(p []float64, x0, x1, n int) []int {
 	return out
 }
 
-// segmentStrip은 스트립을 expected개 컬럼 세그먼트로 나누고 감지된 자연 포즈 수를
-// 함께 반환합니다. 자연 포즈 수가 expected와 같으면 골(gutter) 중심에서 깔끔히 자르고,
-// 아니면 DP로 expected개를 강제 분할합니다.
+// segmentStrip divides the strip into expected column segments and also returns the number of
+// natural poses detected. If the natural pose count equals expected, it cuts cleanly at the
+// gutter centers; otherwise it force-splits into expected segments via DP.
 func segmentStrip(img *image.NRGBA, expected int) (segs []colSpan, natural int) {
 	w := img.Rect.Dx()
 	if w == 0 || expected < 1 {
@@ -213,10 +214,11 @@ func segmentStrip(img *image.NRGBA, expected int) (segs []colSpan, natural int) 
 		return nil, 0
 	}
 
-	// 런마다 "토르소 봉우리(prominence peak)" 수로 포즈 수를 추정하되, 런 폭으로
-	// 상한을 둔다. 봉우리는 "어디서 자를지", 폭은 "몇 개로 자를지"를 정한다:
-	// 발차기처럼 한 포즈가 토르소+뻗은 다리로 두 봉우리를 만들어도, 런 폭이 단일
-	// 포즈 폭(중앙값)이면 1개로 묶어 과분할을 막는다. 닿아 넓어진 런만 그만큼 쪼갠다.
+	// Estimate the pose count per run from the number of "torso peaks (prominence peaks),"
+	// capped by the run width. Peaks decide "where to cut," width decides "into how many":
+	// even when a single pose makes two peaks (torso + extended leg, as in a kick), if the run
+	// width is a single pose width (median) it is grouped as 1 to prevent over-splitting. Only
+	// runs widened by touching are split accordingly.
 	med := medianRunWidth(runs)
 	widthTotal := 0.0
 	for _, r := range runs {
@@ -233,8 +235,8 @@ func segmentStrip(img *image.NRGBA, expected int) (segs []colSpan, natural int) 
 				nPeaks = maxByWidth
 			}
 		}
-		// 포즈 사이 간격이 거의 없어(overlapping) 봉우리가 1개뿐이지만
-		// 런 폭이 평균 포즈 폭의 1.5배 이상이면 강제로 2개로 의심한다.
+		// When there is almost no gap between poses (overlapping) and only one peak appears,
+		// but the run width is at least 1.5× the average pose width, force a suspicion of 2.
 		if nPeaks == 1 && len(runs) > 1 && med > 0 {
 			if float64(r.end-r.start) > med*1.45 {
 				nPeaks = 2
@@ -247,18 +249,19 @@ func segmentStrip(img *image.NRGBA, expected int) (segs []colSpan, natural int) 
 		}
 	}
 
-	// 강제 복구: 감지된 수가 기대와 다르고, 전체 콘텐츠 폭이 기대 개수의
-	// 최소 폭을 감당할 수 있다면 전체 strip을 expected개로 균등/DP 분할.
-	// AI가 포즈를 마젠타 gutter 없이 완전히 붙여 그리는 경우를 방어한다.
+	// Forced recovery: if the detected count differs from expected and the total content width
+	// can accommodate the minimum width for the expected count, split the whole strip into
+	// expected segments evenly/by DP. This defends against the AI drawing poses fully joined
+	// with no magenta gutter.
 	if len(segs) != expected && widthTotal/float64(expected) >= 16 && w/expected >= 16 {
 		segs = splitRange(p, 0, w, expected)
 	}
 
-	// 방출 프레임 수 = 추정 포즈 수 (DP로 expected를 강제하지 않고 정직하게 보고).
+	// Emitted frame count = estimated pose count (reported honestly without forcing expected via DP).
 	return segs, len(segs)
 }
 
-// medianRunWidth는 런 폭의 중앙값입니다 (전형적 단일 포즈 폭 추정).
+// medianRunWidth is the median of the run widths (an estimate of the typical single-pose width).
 func medianRunWidth(runs []colSpan) float64 {
 	if len(runs) == 0 {
 		return 0
@@ -275,9 +278,10 @@ func medianRunWidth(runs []colSpan) float64 {
 	return float64(ws[len(ws)/2])
 }
 
-// posePeaks는 [s,e) 구간에서 prominence(돌출도) 기준의 강한 봉우리(=포즈) 컬럼을
-// 찾습니다. 봉우리 후보는 런 최대값의 45% 이상인 국소 최대이고, 더 높은 봉우리와의
-// 사이 골이 충분히 깊어야(자기 높이의 62% 미만으로 내려가야) 별개 포즈로 인정됩니다.
+// posePeaks finds the strong peak (=pose) columns in the [s,e) span by prominence. A peak
+// candidate is a local maximum at least 45% of the run maximum, and the valley between it and
+// a higher peak must be deep enough (must dip below 62% of its own height) for it to count as
+// a separate pose.
 func posePeaks(p []float64, s, e int) []int {
 	if e-s < 3 {
 		return []int{(s + e) / 2}
@@ -305,7 +309,7 @@ func posePeaks(p []float64, s, e int) []int {
 		prominent := true
 		for _, k := range cand {
 			if k == m || p[k] < p[m] {
-				continue // 자기보다 높은 봉우리에 대해서만 골 깊이 검사
+				continue // only check valley depth against peaks higher than itself
 			}
 			lo, hi := m, k
 			if lo > hi {
@@ -317,7 +321,7 @@ func posePeaks(p []float64, s, e int) []int {
 					vmin = p[x]
 				}
 			}
-			if vmin > 0.62*p[m] { // 사이 골이 얕다 → 같은 포즈의 일부
+			if vmin > 0.62*p[m] { // shallow valley between → part of the same pose
 				prominent = false
 				break
 			}
@@ -332,7 +336,7 @@ func posePeaks(p []float64, s, e int) []int {
 	return keep
 }
 
-// splitRange는 [s,e) 구간을 DP 최소 절단으로 n개 세그먼트로 나눕니다(실패 시 균등).
+// splitRange divides the [s,e) span into n segments by DP minimum cut (even split on failure).
 func splitRange(p []float64, s, e, n int) []colSpan {
 	if n <= 1 || e-s < n {
 		return []colSpan{{s, e}}

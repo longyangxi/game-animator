@@ -1,6 +1,7 @@
-// Command ppsamples는 기술 분석 보고서용 "기술 적용 전/후" 비교 이미지를
-// 실제 sprite 파이프라인 코드로 생성한다. AI 호출 없이 합성 마젠타 스트립을
-// 입력으로 써서, 각 알고리즘을 켰을 때와 껐을 때를 나란히 보여준다.
+// Command ppsamples generates "before/after technique applied" comparison
+// images for technical analysis reports using the real sprite pipeline code.
+// Without any AI calls, it feeds a synthetic magenta strip as input and shows
+// each algorithm enabled vs. disabled side by side.
 package main
 
 import (
@@ -29,8 +30,9 @@ func save(name string, im image.Image) {
 	fmt.Printf("  saved %s (%dx%d)\n", p, im.Bounds().Dx(), im.Bounds().Dy())
 }
 
-// labeledPanel은 이미지 위에 색 라벨 바를 붙인 패널을 만든다.
-// 라벨이 이미지보다 길면 바 폭을 넓히고 이미지를 가운데 정렬한다(텍스트 잘림 방지).
+// labeledPanel builds a panel with a colored label bar above the image.
+// If the label is wider than the image, the bar is widened and the image is
+// centered (to avoid clipping the text).
 func labeledPanel(im *image.NRGBA, label string, bar color.NRGBA) *image.NRGBA {
 	w := textWidth(label, im.Rect.Dx())
 	barH := 26
@@ -41,7 +43,7 @@ func labeledPanel(im *image.NRGBA, label string, bar color.NRGBA) *image.NRGBA {
 	return out
 }
 
-// hstack은 패널들을 가로로 이어 붙인다(간격 gap).
+// hstack joins panels horizontally (with the given gap between them).
 func hstack(gap int, bg color.NRGBA, panels ...*image.NRGBA) *image.NRGBA {
 	w, h := 0, 0
 	for i, p := range panels {
@@ -62,7 +64,7 @@ func hstack(gap int, bg color.NRGBA, panels ...*image.NRGBA) *image.NRGBA {
 	return out
 }
 
-// vstack은 패널들을 세로로 이어 붙인다.
+// vstack joins panels vertically.
 func vstack(gap int, bg color.NRGBA, panels ...*image.NRGBA) *image.NRGBA {
 	w, h := 0, 0
 	for i, p := range panels {
@@ -83,7 +85,8 @@ func vstack(gap int, bg color.NRGBA, panels ...*image.NRGBA) *image.NRGBA {
 	return out
 }
 
-// textWidth는 basicfont(7px 고정폭) 기준 텍스트 픽셀 폭(여백 포함)을 추정한다.
+// textWidth estimates the pixel width of text (including padding), based on
+// basicfont (7px fixed width).
 func textWidth(s string, minW int) int {
 	w := len(s)*7 + 16
 	if w < minW {
@@ -92,7 +95,8 @@ func textWidth(s string, minW int) int {
 	return w
 }
 
-// titleBar는 제목 텍스트 한 줄 패널을 만든다(텍스트가 안 잘리게 폭 자동 조정).
+// titleBar builds a single-line title text panel (auto-sizing the width so the
+// text isn't clipped).
 func titleBar(w int, s string) *image.NRGBA {
 	im := newCanvas(textWidth(s, w), 30, color.NRGBA{255, 255, 255, 255})
 	drawText(im, 8, 20, s, colInk)
@@ -105,7 +109,7 @@ func captionBar(w int, s string, c color.NRGBA) *image.NRGBA {
 	return im
 }
 
-// frameRow는 프레임들을 가로로 배치한 행을 만든다(셀 경계선 포함).
+// frameRow builds a row laying frames out horizontally (including cell borders).
 func frameRow(frames []*image.NRGBA, over *image.NRGBA, centerLine bool) *image.NRGBA {
 	if len(frames) == 0 {
 		return newCanvas(64, 64, color.NRGBA{255, 255, 255, 255})
@@ -115,7 +119,7 @@ func frameRow(frames []*image.NRGBA, over *image.NRGBA, centerLine bool) *image.
 	for i, f := range frames {
 		cell := overOn(over, f)
 		paste(row, cell, i*cw, 0)
-		// 셀 경계
+		// cell border
 		fillRect(row, i*cw, 0, i*cw+1, ch, color.NRGBA{180, 184, 190, 255})
 		if centerLine {
 			cx := i*cw + cw/2
@@ -139,14 +143,14 @@ func main() {
 		scanBodyExtent()
 		return
 	}
-	fmt.Println("== PerfectPixel 기술 비교 이미지 생성 (실제 AI 파이프라인) ==")
-	// 매팅·픽셀화: 새로 생성한 마젠타 베이스 캐릭터(실제 AI)
+	fmt.Println("== PerfectPixel technique comparison image generation (real AI pipeline) ==")
+	// Matting & pixelization: a freshly generated magenta base character (real AI)
 	base, err := buildRealBase()
 	if err != nil {
-		fmt.Println("  [경고] 실제 생성 실패 → 합성 폴백:", err)
+		fmt.Println("  [warning] real generation failed -> synthetic fallback:", err)
 		base = synthBase()
 	}
-	// 분할·정렬: sample/의 실제 AI 매팅 스트립 중 대비가 큰 케이스(스캔으로 선정)
+	// Segmentation & alignment: a high-contrast case among sample/ real AI matted strips (selected by scan)
 	segMatte, segN := pickSampleStrip("sample/fire-mage/kick-south-east", 9)
 	cenMatte, cenN := pickSampleStrip("sample/fire-mage/dash", 5)
 
@@ -157,11 +161,11 @@ func main() {
 	demoBodyExtent()
 	demoOverlapRecovery()
 	buildOverview()
-	fmt.Println("완료. report-images/ 확인.")
+	fmt.Println("Done. Check report-images/.")
 }
 
-// pickSampleStrip은 sample/<char>/<state>/_strip.png(실제 AI 매팅 스트립)를 읽는다.
-// 없으면 합성 스트립을 매팅해 폴백한다. (n = 디렉토리의 frame 개수)
+// pickSampleStrip reads sample/<char>/<state>/_strip.png (a real AI matted strip).
+// If absent, it falls back to matting a synthetic strip. (n = number of frames in the directory)
 func pickSampleStrip(dir string, fallbackN int) (*image.NRGBA, int) {
 	p := filepath.Join(dir, "_strip.png")
 	if im, err := loadPNG(p); err == nil {
@@ -169,14 +173,14 @@ func pickSampleStrip(dir string, fallbackN int) (*image.NRGBA, int) {
 		if n < 2 {
 			n = fallbackN
 		}
-		fmt.Printf("  사용 스트립: %s (n=%d)\n", p, n)
+		fmt.Printf("  using strip: %s (n=%d)\n", p, n)
 		return im, n
 	}
-	fmt.Printf("  [경고] %s 없음 → 합성 매팅 폴백\n", p)
+	fmt.Printf("  [warning] %s not found -> synthetic matting fallback\n", p)
 	return sprite.RemoveBackground(synthStrip(fallbackN)), fallbackN
 }
 
-// ---- 합성 폴백 입력 (실제 생성 실패 시에만 사용) ----
+// ---- synthetic fallback input (used only when real generation fails) ----
 
 func synthBase() *image.NRGBA {
 	im := magentaCanvas(cell, cell)

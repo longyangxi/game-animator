@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// 지원 프로바이더 식별자
+// Supported provider identifiers.
 const (
 	ProviderGemini     = "gemini"
 	ProviderOpenAI     = "openai"
@@ -19,13 +19,13 @@ const (
 	ProviderBytePlus   = "byteplus"
 )
 
-// SupportedProviders는 지원 프로바이더 식별자 목록입니다 (UI 노출 순서).
+// SupportedProviders is the list of supported provider identifiers (in UI display order).
 var SupportedProviders = []string{ProviderGemini, ProviderOpenAI, ProviderOpenRouter, ProviderFal, ProviderBytePlus}
 
-// modelCatalog는 프로바이더별 선택 가능한 이미지 모델 목록입니다 (최신 모델이 맨 앞).
+// modelCatalog is the list of selectable image models per provider (newest model first).
 var modelCatalog = map[string][]string{
 	ProviderGemini: {
-		"gemini-3-pro-image", // Nano Banana Pro (최신)
+		"gemini-3-pro-image", // Nano Banana Pro (newest)
 		"gemini-3-pro-image-preview",
 		"gemini-2.5-flash-image", // Nano Banana
 	},
@@ -36,24 +36,24 @@ var modelCatalog = map[string][]string{
 		"gpt-image-1-mini",
 	},
 	ProviderOpenRouter: {
-		"google/gemini-3-pro-image-preview", // 최신
+		"google/gemini-3-pro-image-preview", // newest
 		"google/gemini-2.5-flash-image",
 		"google/gemini-2.5-flash-image-preview",
 	},
 	ProviderFal: {
-		"fal-ai/nano-banana-pro", // 최신
+		"fal-ai/nano-banana-pro", // newest
 		"fal-ai/nano-banana",
 		"fal-ai/flux-pro/v1.1-ultra",
 		"fal-ai/flux/dev",
 	},
 	ProviderBytePlus: {
-		"seedream-4-0-250828",     // Seedream 4.0 (최신)
+		"seedream-4-0-250828",     // Seedream 4.0 (newest)
 		"seedream-3-0-t2i-250415", // Seedream 3.0
-		"seededit-3-0-i2i-250628", // SeedEdit 3.0 (이미지 편집)
+		"seededit-3-0-i2i-250628", // SeedEdit 3.0 (image editing)
 	},
 }
 
-// ModelsFor는 프로바이더가 제공하는 선택 가능한 모델 목록을 반환합니다 (최신 모델이 맨 앞).
+// ModelsFor returns the list of selectable models offered by a provider (newest model first).
 func ModelsFor(provider string) []string {
 	if list, ok := modelCatalog[provider]; ok {
 		return append([]string(nil), list...)
@@ -61,15 +61,15 @@ func ModelsFor(provider string) []string {
 	return nil
 }
 
-// Provider는 이미지 생성 백엔드 공통 인터페이스입니다.
+// Provider is the common interface for image generation backends.
 type Provider interface {
-	// GenerateImage는 프롬프트와 참조 이미지(PNG)로 이미지를 생성합니다.
+	// GenerateImage generates an image from a prompt and reference images (PNG).
 	GenerateImage(ctx context.Context, prompt string, refImages [][]byte, aspectRatio string) ([]byte, error)
-	// ValidateKey는 API 키 유효성을 확인합니다.
+	// ValidateKey checks whether the API key is valid.
 	ValidateKey(ctx context.Context) error
 }
 
-// DefaultModelFor는 프로바이더별 기본 모델을 반환합니다.
+// DefaultModelFor returns the default model for a given provider.
 func DefaultModelFor(provider string) string {
 	switch provider {
 	case ProviderOpenAI:
@@ -85,7 +85,7 @@ func DefaultModelFor(provider string) string {
 	}
 }
 
-// ProviderLabel은 UI 표시용 이름입니다.
+// ProviderLabel is the display name used in the UI.
 func ProviderLabel(provider string) string {
 	switch provider {
 	case ProviderOpenAI:
@@ -101,7 +101,7 @@ func ProviderLabel(provider string) string {
 	}
 }
 
-// New는 프로바이더 구현체를 생성합니다.
+// New creates a provider implementation.
 func New(provider, apiKey, model string) (Provider, error) {
 	if model == "" {
 		model = DefaultModelFor(provider)
@@ -118,11 +118,11 @@ func New(provider, apiKey, model string) (Provider, error) {
 	case ProviderBytePlus:
 		return NewBytePlus(apiKey, model), nil
 	default:
-		return nil, fmt.Errorf("지원하지 않는 프로바이더입니다: %s", provider)
+		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}
 }
 
-// aspectHint는 종횡비 파라미터를 지원하지 않는 API용 프롬프트 보조 문구입니다.
+// aspectHint is a supplementary prompt phrase for APIs that do not support an aspect ratio parameter.
 func aspectHint(aspectRatio string) string {
 	switch aspectRatio {
 	case "", "1:1":
@@ -136,22 +136,22 @@ func aspectHint(aspectRatio string) string {
 	}
 }
 
-// decodeDataOrDownload는 data: URL이면 디코딩하고, http(s) URL이면 다운로드합니다.
+// decodeDataOrDownload decodes a data: URL, or downloads an http(s) URL.
 func decodeDataOrDownload(httpClient *http.Client, url string) ([]byte, error) {
 	if strings.HasPrefix(url, "data:") {
 		idx := strings.Index(url, "base64,")
 		if idx < 0 {
-			return nil, errors.New("이미지 데이터 형식을 해석할 수 없습니다")
+			return nil, errors.New("could not parse the image data format")
 		}
 		return base64.StdEncoding.DecodeString(url[idx+7:])
 	}
 	resp, err := httpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("결과 이미지 다운로드 실패: %w", err)
+		return nil, fmt.Errorf("failed to download result image: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("결과 이미지 다운로드 실패 (HTTP %d)", resp.StatusCode)
+		return nil, fmt.Errorf("failed to download result image (HTTP %d)", resp.StatusCode)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 }

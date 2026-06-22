@@ -24,7 +24,7 @@ interface IProps {
   onGenerateDirectionSet: (id: string) => void;
 }
 
-// 3단계: 애니메이션 상태 구성 패널
+// Step 3: Animation state configuration panel
 export default function StatesPanel({
   states,
   directions,
@@ -65,9 +65,9 @@ export default function StatesPanel({
   const usedNames = new Set(states.map((s) => s.name));
   const pendingCount = states.filter((s) => s.status !== "done").length;
   const pendingAI = states.filter((s) => s.status !== "done" && !s.mirrorOf).length;
-  // 미생성에 AI 상태가 있으면 API 키 필요, 미러 상태만 남았으면 즉시 가능
+  // If there are pending AI states, an API key is required; if only mirror states remain, generation can proceed immediately
   const canGenerateAll = pendingAI > 0 ? canGenerate : hasImage;
-  // 방향 선택지: AI로 생성 가능한 5방향만 (미러 방향은 8방향 세트로만 생성)
+  // Direction options: only the 5 directions that AI can generate (mirror directions are produced only as part of an 8-direction set)
   const aiDirections = directions.filter((d) => !d.mirrorOf);
 
   return (

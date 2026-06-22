@@ -13,7 +13,7 @@ import (
 	"perfectpixel/internal/sprite"
 )
 
-// stateResult는 한 상태 생성의 결과 + 품질 측정값입니다.
+// stateResult holds the result of generating one state plus its quality measurements.
 type stateResult struct {
 	Name     string
 	Expected int
@@ -71,7 +71,7 @@ func savePNG(path string, img image.Image) {
 	}
 }
 
-// generateBase는 베이스 캐릭터를 생성하고 배경 제거 + 픽셀화한 정리본과 PNG 바이트를 반환합니다.
+// generateBase generates the base character and returns the cleaned-up image (background removed and pixelated) along with its PNG bytes.
 func generateBase(ctx context.Context, p gen.Provider, desc, styleKey, style string) (*image.NRGBA, []byte, error) {
 	raw, err := p.GenerateImage(ctx, sprite.BuildCharacterPrompt(desc, style), nil, "1:1")
 	if err != nil {
@@ -90,7 +90,7 @@ func generateBase(ctx context.Context, p gen.Provider, desc, styleKey, style str
 	return clean, pngBytes(clean), nil
 }
 
-// genState는 앱과 동일한 자동 재시도 품질 보정 루프로 한 상태를 생성합니다.
+// genState generates one state using the same auto-retry quality-correction loop as the app.
 func genState(ctx context.Context, p gen.Provider, opt options, style string,
 	spec sprite.StateSpec, refs [][]byte, baseN *image.NRGBA) stateResult {
 

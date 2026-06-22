@@ -22,18 +22,18 @@ const (
 	openAIModelsEndpoint          = "https://api.openai.com/v1/models"
 )
 
-// OpenAI는 OpenAI Image API 클라이언트입니다.
+// OpenAI is a client for the OpenAI Image API.
 type OpenAI struct {
 	APIKey string
 	Model  string
 	HTTP   *http.Client
 
-	generationEndpoint string // 테스트용 오버라이드
-	editEndpoint       string // 테스트용 오버라이드
-	modelsEndpoint     string // 테스트용 오버라이드
+	generationEndpoint string // test override
+	editEndpoint       string // test override
+	modelsEndpoint     string // test override
 }
 
-// NewOpenAI는 새 OpenAI 이미지 생성 클라이언트를 생성합니다.
+// NewOpenAI creates a new OpenAI image generation client.
 func NewOpenAI(apiKey, model string) *OpenAI {
 	if model == "" {
 		model = DefaultModelFor(ProviderOpenAI)
@@ -66,10 +66,10 @@ type openAIImageResponse struct {
 	} `json:"error"`
 }
 
-// GenerateImage는 OpenAI GPT Image 모델로 이미지를 생성하거나 참조 이미지를 편집합니다.
+// GenerateImage generates an image with the OpenAI GPT Image model, or edits reference images.
 func (c *OpenAI) GenerateImage(ctx context.Context, prompt string, refImages [][]byte, aspectRatio string) ([]byte, error) {
 	if c.APIKey == "" {
-		return nil, errors.New("OpenAI API 키가 설정되지 않았습니다. 설정에서 입력해 주세요")
+		return nil, errors.New("OpenAI API key is not set. Please enter it in the settings")
 	}
 
 	fullPrompt := prompt + "\n\n" + aspectHint(aspectRatio)
@@ -101,7 +101,7 @@ func (c *OpenAI) GenerateImage(ctx context.Context, prompt string, refImages [][
 		body, contentType, err = c.buildEditBody(fullPrompt, refImages, size)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("요청 직렬화 실패: %w", err)
+		return nil, fmt.Errorf("failed to serialize request: %w", err)
 	}
 
 	var lastErr error
@@ -171,13 +171,13 @@ func (c *OpenAI) doImageRequest(ctx context.Context, endpoint, contentType strin
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return nil, true, fmt.Errorf("네트워크 오류: %w", err)
+		return nil, true, fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 	if err != nil {
-		return nil, true, fmt.Errorf("응답 읽기 실패: %w", err)
+		return nil, true, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	var parsed openAIImageResponse
@@ -186,21 +186,21 @@ func (c *OpenAI) doImageRequest(ctx context.Context, endpoint, contentType strin
 	if resp.StatusCode != http.StatusOK {
 		retryable = resp.StatusCode == 429 || resp.StatusCode >= 500
 		if parsed.Error != nil && parsed.Error.Message != "" {
-			return nil, retryable, fmt.Errorf("OpenAI 오류 (%d): %s", resp.StatusCode, parsed.Error.Message)
+			return nil, retryable, fmt.Errorf("OpenAI error (%d): %s", resp.StatusCode, parsed.Error.Message)
 		}
-		return nil, retryable, fmt.Errorf("OpenAI 오류 (HTTP %d)", resp.StatusCode)
+		return nil, retryable, fmt.Errorf("OpenAI error (HTTP %d)", resp.StatusCode)
 	}
 	if parsed.Error != nil && parsed.Error.Message != "" {
-		return nil, true, fmt.Errorf("OpenAI 오류: %s", parsed.Error.Message)
+		return nil, true, fmt.Errorf("OpenAI error: %s", parsed.Error.Message)
 	}
 	if len(parsed.Data) == 0 {
-		return nil, true, errors.New("응답에 이미지가 없습니다")
+		return nil, true, errors.New("the response contains no image")
 	}
 	d := parsed.Data[0]
 	if d.B64JSON != "" {
 		data, err := base64.StdEncoding.DecodeString(d.B64JSON)
 		if err != nil {
-			return nil, false, fmt.Errorf("이미지 디코딩 실패: %w", err)
+			return nil, false, fmt.Errorf("failed to decode image: %w", err)
 		}
 		return data, false, nil
 	}
@@ -211,14 +211,14 @@ func (c *OpenAI) doImageRequest(ctx context.Context, endpoint, contentType strin
 		}
 		return data, false, nil
 	}
-	return nil, true, errors.New("응답에 이미지가 없습니다")
+	return nil, true, errors.New("the response contains no image")
 }
 
-// ValidateKey는 OpenAI 키 유효성을 확인합니다.
+// ValidateKey checks whether the OpenAI key is valid.
 func (c *OpenAI) ValidateKey(ctx context.Context) error {
 	key := strings.TrimSpace(c.APIKey)
 	if !strings.HasPrefix(key, "sk-") || len(key) < 20 {
-		return errors.New("OpenAI API 키 형식이 올바르지 않습니다")
+		return errors.New("the OpenAI API key format is invalid")
 	}
 	ep := c.modelsEndpoint
 	if ep == "" {
@@ -231,22 +231,22 @@ func (c *OpenAI) ValidateKey(ctx context.Context) error {
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return fmt.Errorf("네트워크 오류: %w", err)
+		return fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	}
 	if resp.StatusCode == 401 || resp.StatusCode == 403 {
-		return errors.New("API 키가 유효하지 않거나 이 모델 권한이 없습니다")
+		return errors.New("the API key is invalid or you do not have access to this model")
 	}
 	if resp.StatusCode == 404 {
-		return errors.New("OpenAI 계정에서 GPT Image 모델을 찾을 수 없습니다")
+		return errors.New("the GPT Image model could not be found on this OpenAI account")
 	}
-	return fmt.Errorf("키 확인 실패 (HTTP %d)", resp.StatusCode)
+	return fmt.Errorf("key validation failed (HTTP %d)", resp.StatusCode)
 }
 
-// openAISizeFor는 GPT Image 2가 허용하는 WxH 해상도로 종횡비를 변환합니다.
+// openAISizeFor converts an aspect ratio into a WxH resolution allowed by GPT Image 2.
 func openAISizeFor(aspectRatio string) string {
 	w, h := parseAspect(aspectRatio)
 	if w <= 0 || h <= 0 {

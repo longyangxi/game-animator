@@ -7,57 +7,57 @@ import (
 
 func TestPresetsCatalog(t *testing.T) {
 	if len(Presets) != 100 {
-		t.Fatalf("프리셋 개수 = %d, 기대값 100", len(Presets))
+		t.Fatalf("preset count = %d, expected 100", len(Presets))
 	}
 
 	seen := map[string]bool{}
 	for _, p := range Presets {
 		if p.Name == "" || p.Label == "" || p.Category == "" {
-			t.Errorf("프리셋 필드 누락: %+v", p)
+			t.Errorf("preset field missing: %+v", p)
 		}
 		if seen[p.Name] {
-			t.Errorf("중복 프리셋 이름: %q", p.Name)
+			t.Errorf("duplicate preset name: %q", p.Name)
 		}
 		seen[p.Name] = true
 
-		// 모션 힌트는 자연스러운 애니메이션 품질의 핵심이므로 모든 키워드에 필수
+		// the motion hint is central to natural animation quality, so it is required for every keyword
 		if len(p.Hint) < 20 {
-			t.Errorf("프리셋 %q의 모션 힌트가 비었거나 너무 짧음", p.Name)
+			t.Errorf("preset %q's motion hint is empty or too short", p.Name)
 		}
 		if p.Frames < 1 || p.Frames > 10 {
-			t.Errorf("프리셋 %q의 프레임 수 %d는 1~10 범위 밖", p.Name, p.Frames)
+			t.Errorf("preset %q's frame count %d is outside the 1~10 range", p.Name, p.Frames)
 		}
 		if p.FPS < 1 || p.FPS > 30 {
-			t.Errorf("프리셋 %q의 FPS %d는 1~30 범위 밖", p.Name, p.FPS)
+			t.Errorf("preset %q's FPS %d is outside the 1~30 range", p.Name, p.FPS)
 		}
 		if p.Action == "" {
-			t.Errorf("프리셋 %q의 동작 설명 누락", p.Name)
+			t.Errorf("preset %q's action description missing", p.Name)
 		}
 	}
 }
 
 func TestMotionHintFromCatalog(t *testing.T) {
-	// 카탈로그의 모든 이름이 MotionHint로 조회되어야 함
+	// every name in the catalog must be resolvable via MotionHint
 	for _, p := range Presets {
 		if MotionHint(p.Name) == "" {
-			t.Errorf("MotionHint(%q)가 비었음", p.Name)
+			t.Errorf("MotionHint(%q) is empty", p.Name)
 		}
 	}
-	// 대소문자/공백 정규화 확인
+	// verify case/whitespace normalization
 	if MotionHint("  IDLE  ") == "" {
-		t.Error("MotionHint 정규화 실패")
+		t.Error("MotionHint normalization failed")
 	}
-	// 미등록 이름은 빈 문자열
+	// an unregistered name returns an empty string
 	if MotionHint("nonexistent-state-xyz") != "" {
-		t.Error("미등록 상태는 빈 힌트를 반환해야 함")
+		t.Error("an unregistered state must return an empty hint")
 	}
 }
 
 func TestMotionHintStripsDirectionSuffix(t *testing.T) {
-	// 8방향 세트 상태명은 방향 접미사가 붙어도 베이스 힌트를 찾아야 함
+	// state names in an 8-direction set must find the base hint even with a direction suffix
 	base := MotionHint("attack")
 	if base == "" {
-		t.Fatal("attack 힌트가 비었음")
+		t.Fatal("attack hint is empty")
 	}
 	cases := []string{
 		"attack-south", "attack-north", "attack-east", "attack-west",
@@ -65,12 +65,12 @@ func TestMotionHintStripsDirectionSuffix(t *testing.T) {
 	}
 	for _, name := range cases {
 		if got := MotionHint(name); got != base {
-			t.Errorf("MotionHint(%q) = %q, attack 베이스 힌트와 달라야 하지 않음", name, truncate(got))
+			t.Errorf("MotionHint(%q) = %q, should not differ from the attack base hint", name, truncate(got))
 		}
 	}
-	// 복합 방향이 단일 방향으로 잘못 잘리지 않는지 확인
+	// verify a compound direction is not incorrectly truncated to a single direction
 	if stripDirectionSuffix("attack-south-east") != "attack" {
-		t.Errorf("복합 방향 접미사 제거 실패: %q", stripDirectionSuffix("attack-south-east"))
+		t.Errorf("compound direction suffix removal failed: %q", stripDirectionSuffix("attack-south-east"))
 	}
 }
 
@@ -82,17 +82,17 @@ func TestMotionPresence(t *testing.T) {
 		}
 		return im
 	}
-	// 동일 프레임 2장 → 움직임 0
+	// two identical frames → motion 0
 	if m := MotionPresence([]*image.NRGBA{mk(100), mk(100)}); m != 0 {
-		t.Errorf("동일 프레임 움직임 = %v, 0 기대", m)
+		t.Errorf("identical-frame motion = %v, expected 0", m)
 	}
-	// 흑→백 완전 변화 → 1에 근접
+	// full black→white change → close to 1
 	if m := MotionPresence([]*image.NRGBA{mk(0), mk(255)}); m < 0.7 {
-		t.Errorf("큰 변화 움직임 = %v, 높아야 함", m)
+		t.Errorf("large-change motion = %v, should be high", m)
 	}
-	// 프레임 1장 → 0
+	// a single frame → 0
 	if m := MotionPresence([]*image.NRGBA{mk(50)}); m != 0 {
-		t.Errorf("단일 프레임 = %v, 0 기대", m)
+		t.Errorf("single frame = %v, expected 0", m)
 	}
 }
 
@@ -106,13 +106,13 @@ func truncate(s string) string {
 func TestListPresetsHidesHint(t *testing.T) {
 	out := ListPresets()
 	if len(out) != len(Presets) {
-		t.Fatalf("ListPresets 길이 불일치")
+		t.Fatalf("ListPresets length mismatch")
 	}
-	// 반환 슬라이스 수정이 원본에 영향 주지 않아야 함 (복사본)
+	// modifying the returned slice must not affect the original (it should be a copy)
 	if len(out) > 0 {
 		out[0].Label = "MUTATED"
 		if Presets[0].Label == "MUTATED" {
-			t.Error("ListPresets가 원본 카탈로그를 노출함 (복사본이어야 함)")
+			t.Error("ListPresets exposed the original catalog (it should be a copy)")
 		}
 	}
 }

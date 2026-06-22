@@ -20,7 +20,7 @@ interface IProps {
   onError: (msg: string) => void;
 }
 
-// 1단계: 캐릭터 입력 패널 (이미지 업로드 또는 AI 생성)
+// Step 1: Character input panel (image upload or AI generation)
 export default function CharacterPanel({ character, cellSize, busy, onChange, onCellSize, onError }: IProps) {
   const { t, lang } = useI18n();
   const [mode, setMode] = useState<"upload" | "ai">("upload");

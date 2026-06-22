@@ -1,6 +1,6 @@
 ---
 name: perfectpixel
-description: AI 애니메이션 스프라이트 생성. 텍스트 설명 한 줄로 캐릭터 + 동작 애니메이션(걷기·달리기·공격·마법 등 100여 종) + 8방향 스프라이트 세트를 만들고, 게임 엔진용 번들(스프라이트시트 · manifest.json · Aseprite JSON · 상태별 GIF/APNG · 개별 프레임 PNG)로 내보냅니다. Use when the user wants to generate game sprites, character animations, sprite sheets, sprite atlases, or 8-direction sprite sets from a text description.
+description: AI animated sprite generation. From a single line of text, create a character plus motion animations (walk, run, attack, magic, and 100+ more) and an 8-direction sprite set, then export them as a game-engine-ready bundle (sprite sheet · manifest.json · Aseprite JSON · per-state GIF/APNG · individual frame PNGs). Use when the user wants to generate game sprites, character animations, sprite sheets, sprite atlases, or 8-direction sprite sets from a text description.
 user-invocable: true
 allowed-tools:
   - Bash
@@ -8,70 +8,81 @@ allowed-tools:
   - Write
 ---
 
-# PerfectPixel — AI 애니메이션 스프라이트 생성
+# PerfectPixel — AI animated sprite generation
 
-설치형 데스크톱 앱과 동일한 생성 파이프라인(프롬프트 → AI 이미지 생성 → 배경 제거
-→ 프레임 추출 → 품질 검사 → 보정 재생성 → 픽셀 양자화)을 헤드리스 CLI(`ppgen`)로
-구동해, 게임에 바로 쓸 수 있는 스프라이트 번들을 만든다.
+This drives the same generation pipeline as the installable desktop app (prompt → AI
+image generation → background removal → frame extraction → quality inspection →
+corrective regeneration → pixel quantization) through a headless CLI (`ppgen`) to
+produce sprite bundles ready to drop into a game.
 
-사용자가 캐릭터/동작 애니메이션/스프라이트시트/8방향 세트 생성을 요청하면 이 스킬을 쓴다.
+Use this skill when the user asks to generate a character, motion animations, a sprite
+sheet, or an 8-direction set.
 
-전달된 인자: `$ARGUMENTS`
+Arguments passed: `$ARGUMENTS`
 
 ---
 
-## 0. 사전 준비 (매 실행 첫 단계)
+## 0. Prerequisites (first step of every run)
 
-`ppgen` 바이너리를 확인/설치한다. 이 `SKILL.md`가 있는 디렉토리(= 스킬 루트)에서
-설치 스크립트를 실행한다. 설치 순서는 ① 기존 바이너리 재사용 → ② GitHub Releases에서
-OS/arch 맞는 **프리빌트 바이너리 다운로드(Go 불필요)** → ③ 다운로드 실패 시 Go 소스
-빌드(또는 공개 저장소 클론) 다. 성공하면 **바이너리 절대경로를 마지막 줄로 출력**한다.
+Check for / install the `ppgen` binary. Run the install script from the directory that
+contains this `SKILL.md` (the skill root). The install order is: ① reuse an existing
+binary → ② **download a prebuilt binary matching the OS/arch from GitHub Releases (no Go
+required)** → ③ if the download fails, build from Go source (or clone the public
+repository). On success it **prints the binary's absolute path as the last line**.
 
 ```bash
-# SKILL_DIR = 이 SKILL.md 파일이 있는 디렉토리의 절대경로로 치환할 것.
+# Replace SKILL_DIR with the absolute path of the directory containing this SKILL.md.
 PPGEN="$(bash "$SKILL_DIR/scripts/install.sh" 2>/tmp/ppgen-install.log | tail -1)"
-echo "$PPGEN"   # 이후 모든 ppgen 호출에 이 경로를 사용
+echo "$PPGEN"   # use this path for all subsequent ppgen calls
 ```
 
-설치 실패(출력이 비어 있거나 실행 불가)면 `/tmp/ppgen-install.log`를 읽고 원인(네트워크
-차단 + Go 미설치 등)을 사용자에게 알린다.
+If installation fails (empty output or not executable), read `/tmp/ppgen-install.log`
+and tell the user the cause (e.g. blocked network + Go not installed).
 
-## 1. API 키 확인
+## 1. Check the API key
 
-`ppgen`은 다음 순서로 키를 찾는다: `config.json`(설치형 앱 설정) → 작업 디렉토리/실행
-파일 옆의 `.env`·`.env.local` → OS 환경변수 → CLI `-key` 플래그.
+`ppgen` looks for a key in this order: `config.json` (installed app settings) → `.env` /
+`.env.local` next to the working directory or executable → OS environment variables →
+the CLI `-key` flag.
 
-지원 프로바이더와 환경변수:
+Supported providers and environment variables:
 
-| 프로바이더 | 환경변수 | 기본 모델 |
+| Provider | Environment variable | Default model |
 |---|---|---|
-| gemini (기본) | `GEMINI_API_KEY` (또는 `GOOGLE_API_KEY`) | gemini-3-pro-image |
+| gemini (default) | `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) | gemini-3-pro-image |
 | openrouter | `OPENROUTER_API_KEY` | google/gemini-3-pro-image-preview |
-| fal | `FAL_KEY` (또는 `FAL_API_KEY`) | fal-ai/nano-banana-pro |
-| byteplus | `BYTEPLUS_API_KEY` (또는 `ARK_API_KEY`) | seedream-4-0-250828 |
+| fal | `FAL_KEY` (or `FAL_API_KEY`) | fal-ai/nano-banana-pro |
+| byteplus | `BYTEPLUS_API_KEY` (or `ARK_API_KEY`) | seedream-4-0-250828 |
 
-키를 어디서도 찾지 못하면, 사용자에게 어떤 프로바이더로 어떤 키를 쓸지 묻거나
-`-provider`/`-key`를 직접 지정하게 한다. **키를 추측하거나 지어내지 않는다.**
+If no key is found anywhere, ask the user which provider and key to use, or have them
+specify `-provider`/`-key` directly. **Never guess or make up a key.**
 
-## 2. 요청 해석 → 플래그 매핑
+## 2. Interpret the request → map to flags
 
-사용자의 자연어 요청에서 다음을 뽑아 `ppgen` 플래그로 매핑한다.
+Extract the following from the user's natural-language request and map them to `ppgen`
+flags.
 
-- 캐릭터 설명 → `-desc "..."` (영어 프롬프트가 품질이 가장 좋다. 한국어 설명이면 핵심을
-  영어로 옮겨 전달하되, 사용자에게 보여주는 설명은 원문 유지.)
-- 스타일 → `-style` 중 하나: `pixel`(기본), `chibi`, `cartoon`, `retro16`
-- 만들 동작들 → `-states "idle,walk,attack"` (쉼표 구분). 동작 이름은 영문 프리셋 키다.
-  - 사용 가능한 전체 목록/카테고리는 `"$PPGEN" -dump` 로 확인(`reference/presets.md`에도 요약).
-  - "기본 세트만" 같은 모호한 요청 → `-percat 1`(카테고리당 1개) 또는 핵심 4종
-    `idle,walk,run,attack` 권장.
-  - "전부 다" → `-all` (100여 개, 시간·비용 큼 → 먼저 사용자에게 규모를 알린다).
-- 8방향 세트 요청 → `-dirset walk` 처럼 한 동작 지정 (5방향 AI 생성 + 3방향 미러링).
-- 출력 폴더 → `-out ./output-dir` (기본 `./perfectpixel-out`).
+- Character description → `-desc "..."` (English prompts produce the best quality. If the
+  description is in Korean, translate the essentials into English to pass through, but
+  keep the original text in what you show the user.)
+- Style → one of `-style`: `pixel` (default), `chibi`, `cartoon`, `retro16`
+- Motions to create → `-states "idle,walk,attack"` (comma-separated). Motion names are
+  English preset keys.
+  - Check the full list/categories with `"$PPGEN" -dump` (also summarized in
+    `reference/presets.md`).
+  - For vague requests like "just the basic set" → recommend `-percat 1` (one per
+    category) or the four core motions `idle,walk,run,attack`.
+  - "Everything" → `-all` (100+, large in time/cost → warn the user about the scale
+    first).
+- 8-direction set request → specify one motion, e.g. `-dirset walk` (5 directions
+  AI-generated + 3 mirrored).
+- Output folder → `-out ./output-dir` (default `./perfectpixel-out`).
 
-## 3. 실행
+## 3. Run
 
-항상 `-json` 으로 실행해 기계 판독 가능한 요약을 받는다. 생성은 상태당 수십 초~수 분
-걸리므로 넉넉한 타임아웃으로 백그라운드 실행 후 완료 알림을 기다린다.
+Always run with `-json` to get a machine-readable summary. Generation takes tens of
+seconds to several minutes per state, so run it in the background with a generous
+timeout and wait for the completion notification.
 
 ```bash
 "$PPGEN" \
@@ -82,40 +93,42 @@ echo "$PPGEN"   # 이후 모든 ppgen 호출에 이 경로를 사용
   -json
 ```
 
-비용/속도가 걱정되면 먼저 1개 상태로 시범 실행(`-states idle`)해 품질을 확인하고
-사용자 승인 후 전체를 돌린다.
+If cost/speed is a concern, first do a trial run with a single state (`-states idle`) to
+check quality, then run the full set after the user approves.
 
-## 4. 결과 해석 및 보고
+## 4. Interpret and report the results
 
-stdout JSON(`exportSummary`)의 주요 필드:
+Key fields of the stdout JSON (`exportSummary`):
 
-- `ok`, `outDir`, `provider`, `model`, `style`, `animations`(상태 수), `sheetWidth/Height`
-- `files`: 생성된 산출물 목록
-- `results[]`: 상태별 `{ found/expected, score(0~100), identity, motion, status, errors }`
+- `ok`, `outDir`, `provider`, `model`, `style`, `animations` (number of states),
+  `sheetWidth/Height`
+- `files`: list of generated artifacts
+- `results[]`: per-state `{ found/expected, score(0–100), identity, motion, status, errors }`
 
-`status`가 `frame-mismatch`(프레임 수 불일치)거나 `score`가 낮은(<50) 상태가 있으면
-사용자에게 알리고 재생성(`-attempts` 상향, 설명 구체화, 스타일 변경)을 제안한다.
+If any state has `status` of `frame-mismatch` (frame count mismatch) or a low `score`
+(<50), notify the user and suggest regenerating (raise `-attempts`, make the description
+more specific, change the style).
 
-산출 번들(`outDir/`):
+The output bundle (`outDir/`):
 
 ```
-base.png                      베이스 캐릭터
-sprite-sheet.png              스프라이트시트 (행=상태, 열=프레임)
-manifest.json                 PerfectPixel 런타임 메타데이터 (schema v2)
-sprite-sheet.json             Aseprite 호환 JSON (Phaser/Unity/Godot 임포트)
-frames/<state>/frame-NN.png   개별 프레임
-gif/<state>.gif               상태별 애니메이션 미리보기
-apng/<state>.png              풀 알파 애니메이션
+base.png                      Base character
+sprite-sheet.png              Sprite sheet (rows = states, columns = frames)
+manifest.json                 PerfectPixel runtime metadata (schema v2)
+sprite-sheet.json             Aseprite-compatible JSON (import into Phaser/Unity/Godot)
+frames/<state>/frame-NN.png   Individual frames
+gif/<state>.gif               Per-state animation preview
+apng/<state>.png              Full-alpha animation
 ```
 
-사용자에게는 출력 경로, 상태 수/품질 요약, 게임 엔진 임포트 방법(보통 `sprite-sheet.png`
-+ `sprite-sheet.json` 한 쌍)을 간단히 안내한다.
+For the user, briefly explain the output path, the state count/quality summary, and how
+to import into a game engine (usually the `sprite-sheet.png` + `sprite-sheet.json` pair).
 
 ---
 
-## 참고
+## References
 
-- 프로바이더/모델/환경변수 상세: `reference/providers.md`
-- 동작 프리셋 카탈로그: `reference/presets.md` (또는 `"$PPGEN" -dump`)
-- 이 스킬은 설치형 앱과 **동일한** Go 파이프라인을 공유한다. 알고리즘 변경은 앱과 함께
-  업데이트되며, `install.sh`가 최신 소스로 재빌드한다.
+- Provider/model/environment-variable details: `reference/providers.md`
+- Motion preset catalog: `reference/presets.md` (or `"$PPGEN" -dump`)
+- This skill shares the **same** Go pipeline as the installable app. Algorithm changes
+  are updated alongside the app, and `install.sh` rebuilds from the latest source.

@@ -14,7 +14,7 @@ import (
 	"perfectpixel/internal/sprite"
 )
 
-// runGen은 전체 파이프라인을 실행합니다: 베이스 생성 → 상태별 생성 → 번들 내보내기 → 요약 출력.
+// runGen runs the full pipeline: base generation -> per-state generation -> bundle export -> summary output.
 func runGen(opt options) error {
 	p, provider, model, err := resolveProvider(opt)
 	if err != nil {
@@ -36,7 +36,7 @@ func runGen(opt options) error {
 			fmt.Printf(format, a...)
 		}
 	}
-	logf("프로바이더: %s · 모델: %s · 스타일: %s · 상태 %d개 · 출력: %s\n",
+	logf("provider: %s · model: %s · style: %s · %d states · output: %s\n",
 		provider, model, opt.style, len(presets), opt.out)
 
 	ctx, cancel := context.WithTimeout(context.Background(), opt.timeout)
@@ -44,17 +44,17 @@ func runGen(opt options) error {
 
 	style := sprite.ResolveStyle(opt.style, "")
 
-	// 1) 베이스 캐릭터
-	logf("베이스 캐릭터 생성 중... ")
+	// 1) Base character
+	logf("generating base character... ")
 	t0 := time.Now()
 	baseClean, baseBytes, err := generateBase(ctx, p, opt.desc, opt.style, style)
 	if err != nil {
-		return fmt.Errorf("베이스 생성 실패: %w", err)
+		return fmt.Errorf("base generation failed: %w", err)
 	}
 	savePNG(filepath.Join(opt.out, "base.png"), baseClean)
-	logf("완료 (%.0fs)\n", time.Since(t0).Seconds())
+	logf("done (%.0fs)\n", time.Since(t0).Seconds())
 
-	// baseonly: 상태/번들 생성을 건너뛰고 base.png만 남긴다.
+	// baseonly: skip state/bundle generation and keep only base.png.
 	if opt.baseOnly {
 		if opt.jsonOut {
 			enc := json.NewEncoder(os.Stdout)
@@ -64,41 +64,41 @@ func runGen(opt options) error {
 				"base": filepath.Join(opt.out, "base.png"),
 			})
 		}
-		logf("baseonly 완료 · %s\n", filepath.Join(opt.out, "base.png"))
+		logf("baseonly done · %s\n", filepath.Join(opt.out, "base.png"))
 		return nil
 	}
 
-	// 2) 상태별 생성
+	// 2) Per-state generation
 	var states []sprite.StateFrames
 	var rows []resultRow
 	for _, kw := range presets {
 		spec := sprite.StateSpec{Name: kw.Name, Frames: kw.Frames, FPS: kw.FPS, Loop: kw.Loop, Action: kw.Action}
 		ts := time.Now()
-		logf("[%s] %s 생성 중... ", kw.Category, kw.Name)
+		logf("[%s] generating %s... ", kw.Category, kw.Name)
 		res := genState(ctx, p, opt, style, spec, [][]byte{baseBytes}, baseClean)
-		logf("%d/%d 시도%d 점수%d (%.0fs)\n", res.Found, res.Expected, res.Attempts, res.Score, time.Since(ts).Seconds())
+		logf("%d/%d found, %d attempts, score %d (%.0fs)\n", res.Found, res.Expected, res.Attempts, res.Score, time.Since(ts).Seconds())
 		rows = append(rows, res.row())
 		if len(res.frames) > 0 {
 			states = append(states, sprite.StateFrames{Spec: spec, Frames: res.frames})
 		}
 	}
 
-	// 3) 8방향 세트 (선택)
+	// 3) 8-direction set (optional)
 	if strings.TrimSpace(opt.dirset) != "" {
-		logf("=== 8방향 세트: %s ===\n", opt.dirset)
+		logf("=== 8-direction set: %s ===\n", opt.dirset)
 		dirStates, dirRows := genDirectionSet(ctx, p, opt, style, opt.dirset, baseBytes, baseClean, logf)
 		states = append(states, dirStates...)
 		rows = append(rows, dirRows...)
 	}
 
 	if len(states) == 0 {
-		return fmt.Errorf("생성된 상태가 없어 내보낼 번들이 없습니다")
+		return fmt.Errorf("no states were generated, so there is no bundle to export")
 	}
 
-	// 4) 게임 엔진용 번들 내보내기
+	// 4) Export the game-engine bundle
 	summary, err := exportBundle(opt.out, opt.desc, states, rows)
 	if err != nil {
-		return fmt.Errorf("내보내기 실패: %w", err)
+		return fmt.Errorf("export failed: %w", err)
 	}
 	summary.Provider = provider
 	summary.Model = model
@@ -109,20 +109,20 @@ func runGen(opt options) error {
 		enc.SetIndent("", "  ")
 		return enc.Encode(summary)
 	}
-	logf("\n번들 완료 · 상태 %d개 · 시트 %dx%d · %s\n",
+	logf("\nbundle done · %d states · sheet %dx%d · %s\n",
 		summary.Animations, summary.SheetWidth, summary.SheetHeight, opt.out)
 	logf("  - sprite-sheet.png / manifest.json / sprite-sheet.json (Aseprite)\n")
 	logf("  - frames/<state>/frame-NN.png · gif/<state>.gif · apng/<state>.png\n")
 	return nil
 }
 
-// genDirectionSet은 5방향 AI 생성 + 3방향 미러링으로 8방향 세트를 만듭니다.
+// genDirectionSet builds an 8-direction set from 5 AI-generated directions plus 3 mirrored directions.
 func genDirectionSet(ctx context.Context, p gen.Provider, opt options, style, key string,
 	baseBytes []byte, baseClean *image.NRGBA, logf func(string, ...any)) ([]sprite.StateFrames, []resultRow) {
 
 	pre, ok := sprite.PresetByName(key)
 	if !ok {
-		logf("8방향 세트: 알 수 없는 키워드 %q (건너뜀)\n", key)
+		logf("8-direction set: unknown keyword %q (skipping)\n", key)
 		return nil, nil
 	}
 	var states []sprite.StateFrames
@@ -141,9 +141,9 @@ func genDirectionSet(ctx context.Context, p gen.Provider, opt options, style, ke
 		if !sprite.IsBackFacing(d) {
 			bN = baseClean
 		}
-		logf("  [%s] 생성 중... ", d)
+		logf("  [%s] generating... ", d)
 		res := genState(ctx, p, opt, style, spec, refs, bN)
-		logf("%d/%d 점수%d\n", res.Found, res.Expected, res.Score)
+		logf("%d/%d found, score %d\n", res.Found, res.Expected, res.Score)
 		rows = append(rows, res.row())
 		if len(res.frames) > 0 {
 			states = append(states, sprite.StateFrames{Spec: spec, Frames: res.frames})
@@ -154,7 +154,7 @@ func genDirectionSet(ctx context.Context, p gen.Provider, opt options, style, ke
 		}
 	}
 
-	// 미러 방향: west<-east, south-west<-south-east, north-west<-north-east
+	// Mirrored directions: west<-east, south-west<-south-east, north-west<-north-east
 	mirror := map[string]string{"west": "east", "south-west": "south-east", "north-west": "north-east"}
 	for dst, src := range mirror {
 		srcFrames := frameByDir[src]
@@ -168,7 +168,7 @@ func genDirectionSet(ctx context.Context, p gen.Provider, opt options, style, ke
 		spec := sprite.StateSpec{Name: key + "-" + dst, Frames: pre.Frames, FPS: pre.FPS, Loop: pre.Loop, Action: pre.Action, Facing: dst}
 		states = append(states, sprite.StateFrames{Spec: spec, Frames: mirrored})
 		rows = append(rows, resultRow{Name: spec.Name, Expected: pre.Frames, Found: len(mirrored), Status: "mirrored"})
-		logf("  [%s] 미러링(%s) %d프레임\n", dst, src, len(mirrored))
+		logf("  [%s] mirrored(%s) %d frames\n", dst, src, len(mirrored))
 	}
 	return states, rows
 }

@@ -13,14 +13,14 @@ import (
 	"time"
 )
 
-// Fal은 fal.ai 동기 실행(run) API 클라이언트입니다.
+// Fal is a client for the fal.ai synchronous run API.
 type Fal struct {
 	APIKey string
-	Model  string // 예: fal-ai/nano-banana-pro (참조 이미지가 있으면 자동으로 /edit 사용)
+	Model  string // e.g. fal-ai/nano-banana-pro (automatically uses /edit when reference images are present)
 	HTTP   *http.Client
 }
 
-// NewFal은 새 fal.ai 클라이언트를 생성합니다.
+// NewFal creates a new fal.ai client.
 func NewFal(apiKey, model string) *Fal {
 	if model == "" {
 		model = DefaultModelFor(ProviderFal)
@@ -48,7 +48,7 @@ type falResponse struct {
 	Detail any `json:"detail"`
 }
 
-// endpoint는 참조 이미지 유무에 따라 edit 엔드포인트를 선택합니다.
+// endpoint selects the edit endpoint depending on whether reference images are present.
 func (c *Fal) endpoint(hasRefs bool) string {
 	model := strings.TrimSuffix(strings.TrimSpace(c.Model), "/")
 	if hasRefs && !strings.HasSuffix(model, "/edit") {
@@ -57,14 +57,14 @@ func (c *Fal) endpoint(hasRefs bool) string {
 	return "https://fal.run/" + model
 }
 
-// GenerateImage는 fal.ai로 이미지를 생성합니다.
+// GenerateImage generates an image with fal.ai.
 func (c *Fal) GenerateImage(ctx context.Context, prompt string, refImages [][]byte, aspectRatio string) ([]byte, error) {
 	if c.APIKey == "" {
-		return nil, errors.New("fal.ai API 키가 설정되지 않았습니다. 설정에서 입력해 주세요")
+		return nil, errors.New("fal.ai API key is not set. Please enter it in the settings")
 	}
 
 	reqData := falRequest{
-		// 종횡비 파라미터가 무시되는 경우를 대비해 프롬프트 힌트도 함께 전달
+		// Also pass a prompt hint in case the aspect ratio parameter is ignored.
 		Prompt:       prompt + "\n\n" + aspectHint(aspectRatio),
 		NumImages:    1,
 		OutputFormat: "png",
@@ -97,7 +97,7 @@ func (c *Fal) GenerateImage(ctx context.Context, prompt string, refImages [][]by
 		}
 		body, err := json.Marshal(send)
 		if err != nil {
-			return nil, fmt.Errorf("요청 직렬화 실패: %w", err)
+			return nil, fmt.Errorf("failed to serialize request: %w", err)
 		}
 
 		img, status, err := c.doRequest(ctx, url, body)
@@ -106,7 +106,7 @@ func (c *Fal) GenerateImage(ctx context.Context, prompt string, refImages [][]by
 		}
 		lastErr = err
 
-		// 스키마 거부(422)면 aspect_ratio 없이 1회 재시도
+		// On a schema rejection (422), retry once without aspect_ratio.
 		if status == 422 && withAspect {
 			withAspect = false
 			continue
@@ -128,13 +128,13 @@ func (c *Fal) doRequest(ctx context.Context, url string, body []byte) (img []byt
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("네트워크 오류: %w", err)
+		return nil, 0, fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("응답 읽기 실패: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -146,15 +146,15 @@ func (c *Fal) doRequest(ctx context.Context, url string, body []byte) (img []byt
 				detail = ": " + string(d)
 			}
 		}
-		return nil, resp.StatusCode, fmt.Errorf("fal.ai 오류 (HTTP %d)%s", resp.StatusCode, detail)
+		return nil, resp.StatusCode, fmt.Errorf("fal.ai error (HTTP %d)%s", resp.StatusCode, detail)
 	}
 
 	var parsed falResponse
 	if err := json.Unmarshal(respBytes, &parsed); err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("응답 파싱 실패: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to parse response: %w", err)
 	}
 	if len(parsed.Images) == 0 || parsed.Images[0].URL == "" {
-		return nil, 500, errors.New("응답에 이미지가 없습니다")
+		return nil, 500, errors.New("the response contains no image")
 	}
 	data, err := decodeDataOrDownload(c.HTTP, parsed.Images[0].URL)
 	if err != nil {
@@ -163,11 +163,11 @@ func (c *Fal) doRequest(ctx context.Context, url string, body []byte) (img []byt
 	return data, resp.StatusCode, nil
 }
 
-// ValidateKey는 fal 키 형식을 확인합니다 (fal은 경량 검증 엔드포인트가 없음).
+// ValidateKey checks the fal key format (fal has no lightweight validation endpoint).
 func (c *Fal) ValidateKey(_ context.Context) error {
 	key := strings.TrimSpace(c.APIKey)
 	if len(key) < 10 {
-		return errors.New("API 키가 너무 짧습니다")
+		return errors.New("the API key is too short")
 	}
 	return nil
 }

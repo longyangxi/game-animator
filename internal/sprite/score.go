@@ -5,15 +5,15 @@ import (
 	"math"
 )
 
-// ScoreResult는 프레임 세트의 quality metric을 담습니다.
+// ScoreResult holds the quality metrics of a frame set.
 type ScoreResult struct {
-	Identity float64 `json:"identity"` // 인접 프레임 간 평균 perceptual 유사도 (0~1)
+	Identity float64 `json:"identity"` // average perceptual similarity between adjacent frames (0~1)
 	Motion   float64 `json:"motion"`   // MotionPresence 0~1
-	Contact  float64 `json:"contact"`  // 땅선/가장자리 일관성 0~1
-	Overall  float64 `json:"overall"`  // 0~1 종합 점수
+	Contact  float64 `json:"contact"`  // ground-line/edge consistency 0~1
+	Overall  float64 `json:"overall"`  // 0~1 overall score
 }
 
-// ScoreFrames는 프레임 세트의 완성도 점수를 계산합니다.
+// ScoreFrames computes the completeness score of a frame set.
 func ScoreFrames(frames []*image.NRGBA) ScoreResult {
 	r := ScoreResult{}
 	if len(frames) < 2 {
@@ -26,7 +26,7 @@ func ScoreFrames(frames []*image.NRGBA) ScoreResult {
 	return r
 }
 
-// pairwiseIdentity는 인접 프레임 간 가중 색/알파 차이를 0~1로 정규화합니다.
+// pairwiseIdentity normalizes the weighted color/alpha difference between adjacent frames to 0~1.
 func pairwiseIdentity(frames []*image.NRGBA) float64 {
 	var total float64
 	pairs := 0
@@ -38,12 +38,12 @@ func pairwiseIdentity(frames []*image.NRGBA) float64 {
 		var diff float64
 		var n int
 		for p := 0; p+3 < len(a.Pix) && p+3 < len(b.Pix); p += 4 {
-			// 색상 거리 인지 가중 + 알파 차이
+			// perceptually weighted color distance + alpha difference
 			dr := float64(int(a.Pix[p]) - int(b.Pix[p]))
 			dg := float64(int(a.Pix[p+1]) - int(b.Pix[p+1]))
 			db := float64(int(a.Pix[p+2]) - int(b.Pix[p+2]))
 			da := float64(int(a.Pix[p+3]) - int(b.Pix[p+3]))
-			// 인지 RGB 거리
+			// perceptual RGB distance
 			d := math.Sqrt(0.299*dr*dr + 0.587*dg*dg + 0.114*db*db)
 			d += 0.5 * math.Abs(da)
 			if a.Pix[p+3] > alphaThreshold || b.Pix[p+3] > alphaThreshold {
@@ -62,8 +62,8 @@ func pairwiseIdentity(frames []*image.NRGBA) float64 {
 	return total / float64(pairs)
 }
 
-// contactScore는 베이스라인/상단 컨택의 수직 일관성을 측정합니다.
-// 캐릭터의 발/머리 높이가 프레임 간 크게 변하면 낮은 점수를 줍니다.
+// contactScore measures the vertical consistency of the baseline/top contact.
+// It gives a low score when the character's foot/head height changes greatly between frames.
 func contactScore(frames []*image.NRGBA) float64 {
 	type bounds struct {
 		top, bottom, h int
@@ -117,9 +117,9 @@ func contactScore(frames []*image.NRGBA) float64 {
 	}
 	bottomMAE := bottomVar / float64(n)
 	topMAE := topVar / float64(n)
-	// 높이 대비 허용 범위: top(머리) 변화는 28% 이내, bottom(발)은 10% 이내.
-	// 수영/점프는 발끝을 고정으로 두고 상체가 위아래로 움직이므로 bottom이
-	// 안정적일 때 contact가 높아야 한다.
+	// Tolerance relative to height: top (head) change within 28%, bottom (feet) within 10%.
+	// In swimming/jumping the feet stay fixed while the upper body moves up and down, so
+	// contact should be high when the bottom is stable.
 	tolBottom := math.Max(float64(maxH)*0.10, 2.0)
 	tolTop := math.Max(float64(maxH)*0.28, 2.0)
 	bottomScore := 1.0 - math.Min(bottomMAE/tolBottom, 1.0)

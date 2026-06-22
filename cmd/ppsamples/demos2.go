@@ -8,7 +8,7 @@ import (
 	"perfectpixel/internal/sprite"
 )
 
-// scaleDown은 정수 배율 f로 nearest 축소한다.
+// scaleDown downsamples by integer factor f using nearest-neighbor.
 func scaleDown(im *image.NRGBA, f int) *image.NRGBA {
 	if f < 2 {
 		return im
@@ -24,7 +24,7 @@ func scaleDown(im *image.NRGBA, f int) *image.NRGBA {
 	return out
 }
 
-// scaleUp은 정수 배율 f로 nearest 확대한다(픽셀 격자 확대용).
+// scaleUp upsamples by integer factor f using nearest-neighbor (for zooming the pixel grid).
 func scaleUp(im *image.NRGBA, f int) *image.NRGBA {
 	w, h := im.Rect.Dx()*f, im.Rect.Dy()*f
 	out := newCanvas(w, h, color.NRGBA{0, 0, 0, 0})
@@ -37,7 +37,7 @@ func scaleUp(im *image.NRGBA, f int) *image.NRGBA {
 	return out
 }
 
-// scaleRow는 프레임들을 gray 위에 올려 f배 축소 후 가로로 잇는다.
+// scaleRow places frames over gray, downsamples by factor f, and joins them horizontally.
 func scaleRow(frames []*image.NRGBA, over *image.NRGBA, f int) *image.NRGBA {
 	var panels []*image.NRGBA
 	for _, fr := range frames {
@@ -50,7 +50,7 @@ func blend(dst, src, a uint8) uint8 {
 	return uint8((int(dst)*(255-int(a)) + int(src)*int(a)) / 255)
 }
 
-// onionSkin은 모든 프레임을 반투명하게 겹쳐 토르소 정렬 상태를 보여준다.
+// onionSkin overlays all frames semi-transparently to show the torso alignment.
 func onionSkin(frames []*image.NRGBA, over *image.NRGBA) *image.NRGBA {
 	if len(frames) == 0 {
 		return over
@@ -110,7 +110,7 @@ func u8c(v float64) uint8 {
 	return uint8(v + 0.5)
 }
 
-// shadeGradient는 비마젠타 픽셀에 대각 그라데이션 음영을 입혀 색 수를 늘린다.
+// shadeGradient applies diagonal gradient shading to non-magenta pixels to increase the color count.
 func shadeGradient(im *image.NRGBA) {
 	w, h := im.Rect.Dx(), im.Rect.Dy()
 	for y := 0; y < h; y++ {
@@ -128,17 +128,17 @@ func shadeGradient(im *image.NRGBA) {
 	}
 }
 
-// ---------- 3. centroid 정렬 ----------
+// ---------- 3. centroid alignment ----------
 
 func demoCentroid(matte *image.NRGBA, n int) {
-	fmt.Println("[3] alpha-weighted centroid 정렬 — 실제 AI 스트립")
+	fmt.Println("[3] alpha-weighted centroid alignment — real AI strip")
 	W := cell * n
 	without := equalSplitExtract(matte, n, cell, cell, 16)
 	with := sprite.ExtractFrames(matte, n, cell, cell, 16).Frames
 
 	swo := centroidSpread(without)
 	swi := centroidSpread(with)
-	fmt.Printf("  콘텐츠 질량중심 가로 표준편차(작을수록 안정): 없음=%.1f  있음=%.1f\n", swo, swi)
+	fmt.Printf("  content centroid horizontal std dev (smaller is more stable): without=%.1f  with=%.1f\n", swo, swi)
 
 	gray := newCanvas(cell, cell, colBG)
 	woRow := scaleRow(without, gray, 2)
@@ -164,10 +164,10 @@ func demoCentroid(matte *image.NRGBA, n int) {
 // ---------- 4. pixelize + quantize ----------
 
 func demoPixelize(raw *image.NRGBA) {
-	fmt.Println("[4] palette quantize + grid snap — 실제 AI 캐릭터")
+	fmt.Println("[4] palette quantize + grid snap — real AI character")
 	frame := sprite.ExtractFrames(sprite.RemoveBackground(raw), 1, cell, cell, 16).Frames
 	if len(frame) == 0 {
-		fmt.Println("  추출 실패")
+		fmt.Println("  extraction failed")
 		return
 	}
 	without := cloneNRGBA(frame[0])
@@ -177,7 +177,7 @@ func demoPixelize(raw *image.NRGBA) {
 
 	cwo := distinctColors(without)
 	cwi := distinctColors(with)
-	fmt.Printf("  서로 다른 색 수: 없음=%d  있음=%d\n", cwo, cwi)
+	fmt.Printf("  distinct color count: without=%d  with=%d\n", cwo, cwi)
 
 	gray := newCanvas(cell, cell, colBG)
 	cropWO := scaleUp(cropRect(overOn(gray, without), cell/2-40, 20, 80, 80), 4)

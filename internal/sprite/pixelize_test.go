@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// makeBlocky는 scale 크기 블록으로 구성된 진짜 픽셀아트 시뮬레이션 이미지를 만듭니다.
+// makeBlocky creates a simulated true-pixel-art image composed of scale-sized blocks.
 func makeBlocky(w, h, scale int, colors []rgb) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))
 	for by := 0; by < h; by += scale {
@@ -34,7 +34,7 @@ func TestDetectPixelScale(t *testing.T) {
 }
 
 func TestDetectPixelScaleNative(t *testing.T) {
-	// 1px 단위 노이즈 이미지 → 스케일 감지 불가 (1 반환)
+	// 1px-granularity noise image → scale cannot be detected (returns 1)
 	colors := []rgb{{10, 20, 30}, {200, 100, 50}, {90, 180, 210}, {250, 250, 250}, {120, 60, 200}}
 	img := makeBlocky(64, 64, 1, colors)
 	if got := DetectPixelScale(img); got != 1 {
@@ -45,13 +45,13 @@ func TestDetectPixelScaleNative(t *testing.T) {
 func TestPixelizeSnapsGrid(t *testing.T) {
 	colors := []rgb{{200, 40, 40}, {40, 200, 40}}
 	img := makeBlocky(64, 64, 8, colors)
-	// AA 노이즈 주입: 블록 경계에 중간색 픽셀
+	// inject AA noise: mid-color pixels at the block boundary
 	for y := 0; y < 64; y++ {
 		i := img.PixOffset(7, y)
 		img.Pix[i], img.Pix[i+1], img.Pix[i+2] = 120, 120, 40
 	}
 	out := Pixelize(img, 8)
-	// 모든 8x8 블록이 단일 색이어야 함
+	// every 8x8 block must be a single color
 	for by := 0; by < 64; by += 8 {
 		for bx := 0; bx < 64; bx += 8 {
 			first := out.PixOffset(bx, by)
@@ -69,7 +69,7 @@ func TestPixelizeSnapsGrid(t *testing.T) {
 }
 
 func TestBuildSharedPaletteAndApply(t *testing.T) {
-	// 두 프레임에 비슷하지만 다른 색 → 공유 팔레트 적용 후 동일 색으로 수렴
+	// two frames with similar but different colors → converge to the same color after applying the shared palette
 	f1 := image.NewNRGBA(image.Rect(0, 0, 16, 16))
 	f2 := image.NewNRGBA(image.Rect(0, 0, 16, 16))
 	fill := func(img *image.NRGBA, c rgb) {
@@ -78,7 +78,7 @@ func TestBuildSharedPaletteAndApply(t *testing.T) {
 		}
 	}
 	fill(f1, rgb{200, 50, 50})
-	fill(f2, rgb{204, 54, 54}) // 프레임 간 미세 drift
+	fill(f2, rgb{204, 54, 54}) // slight inter-frame drift
 	frames := []*image.NRGBA{f1, f2}
 	pal := BuildSharedPalette(frames, 4)
 	if len(pal) == 0 {

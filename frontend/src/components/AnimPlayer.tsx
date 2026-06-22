@@ -4,13 +4,13 @@ import { useI18n } from "../i18n";
 import { Button } from "./ui/button";
 
 interface IProps {
-  frames: string[]; // dataURL 목록 (선택/정렬 반영)
+  frames: string[]; // List of dataURLs (reflects selection/ordering)
   fps: number;
   loop: boolean;
   cellSize: number;
 }
 
-// 캔버스 기반 애니메이션 플레이어
+// Canvas-based animation player
 export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -21,7 +21,7 @@ export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
   const [frameIdx, setFrameIdx] = useState(0);
   const stateRef = useRef({ idx: 0, acc: 0, last: 0, playing: true, fps, loop });
 
-  // 외부 fps 변경 반영
+  // Reflect external fps changes
   useEffect(() => setPlayFps(fps), [fps]);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
     stateRef.current.playing = playing;
   }, [playFps, loop, playing]);
 
-  // 프레임 이미지 로딩
+  // Load frame images
   useEffect(() => {
     let cancelled = false;
     const imgs = frames.map((src) => {
@@ -62,7 +62,7 @@ export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
     };
   }, [frames]);
 
-  // 렌더 루프
+  // Render loop
   useEffect(() => {
     let raf = 0;
     const tick = (t: number) => {
@@ -83,7 +83,7 @@ export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
           st.acc -= frameDur;
           if (st.idx + 1 >= imgs.length) {
             if (st.loop) st.idx = 0;
-            else st.acc = 0; // 마지막 프레임 유지
+            else st.acc = 0; // Hold on the last frame
           } else {
             st.idx += 1;
           }

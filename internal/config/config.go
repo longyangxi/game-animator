@@ -1,4 +1,4 @@
-// Package config는 앱 설정 영속화를 담당합니다.
+// Package config handles persistence of application settings.
 package config
 
 import (
@@ -9,13 +9,13 @@ import (
 	"strings"
 )
 
-// ProviderCfg는 프로바이더별 키/모델 설정입니다.
+// ProviderCfg holds the key/model configuration for a provider.
 type ProviderCfg struct {
 	APIKey string `json:"apiKey"`
 	Model  string `json:"model"`
 }
 
-// Settings는 사용자 설정입니다.
+// Settings holds the user settings.
 type Settings struct {
 	Provider   string      `json:"provider"` // gemini | openai | openrouter | fal | byteplus
 	Gemini     ProviderCfg `json:"gemini"`
@@ -24,12 +24,12 @@ type Settings struct {
 	Fal        ProviderCfg `json:"fal"`
 	BytePlus   ProviderCfg `json:"byteplus"`
 
-	// 레거시 필드 (v1 → 마이그레이션용)
+	// Legacy fields (for migration from v1).
 	LegacyAPIKey string `json:"apiKey,omitempty"`
 	LegacyModel  string `json:"model,omitempty"`
 }
 
-// Cfg는 프로바이더 이름으로 해당 설정을 반환합니다.
+// Cfg returns the configuration for the given provider name.
 func (s *Settings) Cfg(provider string) *ProviderCfg {
 	switch provider {
 	case "openai":
@@ -53,7 +53,7 @@ func configPath() (string, error) {
 	return filepath.Join(dir, "perfectpixel", "config.json"), nil
 }
 
-// SessionPath는 작업 세션 스냅샷 파일 경로를 반환합니다.
+// SessionPath returns the file path for the work session snapshot.
 func SessionPath() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
@@ -62,7 +62,7 @@ func SessionPath() (string, error) {
 	return filepath.Join(dir, "perfectpixel", "session.json"), nil
 }
 
-// GalleryDir는 생성 이미지가 자동 보관되는 갤러리 디렉토리 경로를 반환합니다.
+// GalleryDir returns the path of the gallery directory where generated images are automatically archived.
 func GalleryDir() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
@@ -71,7 +71,7 @@ func GalleryDir() (string, error) {
 	return filepath.Join(dir, "perfectpixel", "gallery"), nil
 }
 
-// Load는 설정을 읽고 레거시 마이그레이션 및 환경변수 폴백을 적용합니다.
+// Load reads the settings and applies legacy migration and environment variable fallback.
 func Load() Settings {
 	var s Settings
 	if path, err := configPath(); err == nil {
@@ -80,7 +80,7 @@ func Load() Settings {
 		}
 	}
 
-	// v1 단일 키 → Gemini로 마이그레이션
+	// Migrate the v1 single key to Gemini.
 	if s.LegacyAPIKey != "" && s.Gemini.APIKey == "" {
 		s.Gemini.APIKey = s.LegacyAPIKey
 		if s.LegacyModel != "" {
@@ -90,7 +90,7 @@ func Load() Settings {
 	s.LegacyAPIKey = ""
 	s.LegacyModel = ""
 
-	// 환경변수 / .env 파일 폴백 (설정 파일이 우선)
+	// Environment variable / .env file fallback (the config file takes precedence).
 	env := loadEnvFallback()
 	if s.Gemini.APIKey == "" {
 		s.Gemini.APIKey = firstNonEmpty(env["GEMINI_API_KEY"], env["GOOGLE_API_KEY"])
@@ -108,7 +108,7 @@ func Load() Settings {
 		s.BytePlus.APIKey = firstNonEmpty(env["BYTEPLUS_API_KEY"], env["ARK_API_KEY"])
 	}
 
-	// 활성 프로바이더 자동 선택: 키가 있는 첫 프로바이더
+	// Auto-select the active provider: the first provider that has a key.
 	if s.Provider == "" {
 		switch {
 		case s.Gemini.APIKey != "":
@@ -128,7 +128,7 @@ func Load() Settings {
 	return s
 }
 
-// Save는 설정을 저장합니다 (0600 권한).
+// Save persists the settings (with 0600 permissions).
 func Save(s Settings) error {
 	path, err := configPath()
 	if err != nil {
@@ -144,11 +144,11 @@ func Save(s Settings) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
-// loadEnvFallback은 OS 환경변수와 실행 위치 주변의 .env/.env.local을 읽습니다.
+// loadEnvFallback reads OS environment variables and .env/.env.local files near the execution location.
 func loadEnvFallback() map[string]string {
 	out := map[string]string{}
 
-	// 1) .env 파일 (작업 디렉토리 + 실행 파일 디렉토리)
+	// 1) .env files (working directory + executable directory)
 	var dirs []string
 	if wd, err := os.Getwd(); err == nil {
 		dirs = append(dirs, wd)
@@ -162,7 +162,7 @@ func loadEnvFallback() map[string]string {
 		}
 	}
 
-	// 2) OS 환경변수 (파일보다 우선)
+	// 2) OS environment variables (take precedence over files)
 	for _, key := range []string{"GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "FAL_KEY", "FAL_API_KEY", "BYTEPLUS_API_KEY", "ARK_API_KEY"} {
 		if v := os.Getenv(key); v != "" {
 			out[key] = v

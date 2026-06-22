@@ -7,19 +7,19 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-const alphaThreshold = 10 // 이 값 이하의 알파는 빈(투명) 픽셀로 취급
+const alphaThreshold = 10 // alpha at or below this value is treated as an empty (transparent) pixel
 
-// frameContent는 스트립 좌표계에서 추출한 한 포즈의 콘텐츠입니다.
+// frameContent is the content of a single pose extracted in strip coordinates.
 type frameContent struct {
-	img    *image.NRGBA // bbox로 자른 콘텐츠
+	img    *image.NRGBA // content cropped to its bbox
 	minX   int
-	cx     float64 // 알파 가중 질량 중심 X (스트립 좌표)
-	bottom int     // 베이스라인(콘텐츠 최하단 행, 스트립 좌표)
+	cx     float64 // alpha-weighted center of mass X (strip coordinates)
+	bottom int     // baseline (lowest content row, strip coordinates)
 }
 
-// extractContent는 컬럼 구간 span 안의 불투명 픽셀을 bbox로 잘라냅니다.
-// 소유권 추적(연결요소) 없이 구간 내 모든 콘텐츠를 모으므로, 팔다리가 분리되어도
-// 한 포즈로 안전하게 합쳐집니다.
+// extractContent crops the opaque pixels within the column span to a bbox.
+// It gathers all content in the span without ownership tracking (connected components), so even
+// if limbs are detached they are safely merged into one pose.
 func extractContent(strip *image.NRGBA, span colSpan, h int) frameContent {
 	minX, minY, maxX, maxY := span.end, h, span.start-1, -1
 	var sumWX, sumW float64
@@ -67,14 +67,14 @@ func extractContent(strip *image.NRGBA, span colSpan, h int) frameContent {
 	return frameContent{img: dst, minX: minX, cx: cx, bottom: maxY}
 }
 
-// ExtractFrames는 투명 배경 스트립에서 포즈를 투영 분할로 검출해 셀 크기 프레임으로
-// 만듭니다. 모든 프레임에 공통 스케일을 적용하고, 질량 중심으로 수평 정렬하며,
-// 공통 베이스라인 기준으로 수직 오프셋(점프 호 등)을 보존합니다.
+// ExtractFrames detects poses in a transparent-background strip via projection segmentation and
+// produces cell-sized frames. It applies a common scale to all frames, aligns them horizontally
+// by center of mass, and preserves vertical offsets (jump arcs, etc.) against a common baseline.
 func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) ExtractResult {
 	res := ExtractResult{Expected: expected}
 	segs, natural := segmentStrip(strip, expected)
 	if len(segs) == 0 {
-		res.Warnings = append(res.Warnings, "이미지에서 캐릭터를 찾지 못했습니다. 다시 생성해 주세요.")
+		res.Warnings = append(res.Warnings, "No character was found in the image. Please regenerate.")
 		return res
 	}
 	h := strip.Rect.Dy()
@@ -87,11 +87,11 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 		}
 	}
 	if len(fcs) == 0 {
-		res.Warnings = append(res.Warnings, "유효한 포즈를 찾지 못했습니다. 다시 생성해 주세요.")
+		res.Warnings = append(res.Warnings, "No valid pose was found. Please regenerate.")
 		return res
 	}
 
-	// 공통 베이스라인 + 공유 스케일
+	// common baseline + shared scale
 	baseline := 0
 	for _, g := range fcs {
 		if g.bottom > baseline {
@@ -119,13 +119,13 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 	}
 
 	for _, g := range fcs {
-		// scale은 body extent 기준으로 계산했으므로, 그 외 바운딩 박스 빈 공간은
-		// 여유 공간에 맞춰 조정한다.
+		// scale was computed against the body extent, so adjust the remaining empty space in the
+		// bounding box to fit the available space.
 		boxScale := minf(scale, minf(float64(availW)/float64(g.img.Rect.Dx()), float64(availH)/float64(g.img.Rect.Dy())))
 		if boxScale > 1 {
 			boxScale = 1
 		}
-		// 세로 정렬에서는 실제 발/하체 부분(bottom)이 아니라 콘텐츠 하단 기준 사용
+		// for vertical alignment, use the content's bottom rather than the actual feet/lower-body (bottom)
 		sw := int(float64(g.img.Rect.Dx())*boxScale + 0.5)
 		sh := int(float64(g.img.Rect.Dy())*boxScale + 0.5)
 		if sw < 1 {
@@ -139,12 +139,12 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 			scaled = image.NewNRGBA(image.Rect(0, 0, sw, sh))
 			xdraw.CatmullRom.Scale(scaled, scaled.Rect, g.img, g.img.Rect, xdraw.Over, nil)
 		}
-		// 공통 baseline 보정을 위해 strip 내 콘텐츠 하단 대비 offset을 scale
+		// scale the offset relative to the content's bottom in the strip, for common-baseline correction
 		contentBaseline := int(float64(baseline-g.bottom)*boxScale + 0.5)
 
 		cell := image.NewNRGBA(image.Rect(0, 0, cellW, cellH))
-		// 질량 중심이 셀 중앙에 오도록 수평 배치 (팔다리가 한쪽으로 뻗어도
-		// 면적이 큰 몸통이 지배해 프레임 간 흔들림이 적음).
+		// place horizontally so the center of mass lands at the cell center (even if limbs extend to
+		// one side, the larger-area torso dominates, so there is little wobble between frames).
 		left := int(float64(cellW)/2 - (g.cx-float64(g.minX))*boxScale + 0.5)
 		if left < 0 {
 			left = 0
@@ -163,13 +163,13 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 	res.Found = natural
 	if natural != expected {
 		res.Warnings = append(res.Warnings,
-			fmt.Sprintf("기대한 %d개와 다른 %d개의 포즈가 감지되었습니다. 포즈가 겹쳤거나 누락됐을 수 있어 재생성을 권장합니다.", expected, natural))
+			fmt.Sprintf("Detected %[2]d poses instead of the expected %[1]d. Poses may have overlapped or gone missing; regeneration is recommended.", expected, natural))
 	}
 	return res
 }
 
-// bodyExtent는 알파 질량 80%를 포함하는 최소 크기를 "실제 바디" extent로 반환합니다.
-// 길게 뻗은 팔다리 outlier가 스케일을 과대 산정하는 것을 막습니다.
+// bodyExtent returns the minimum size containing 80% of the alpha mass as the "real body" extent.
+// It prevents long, extended-limb outliers from overestimating the scale.
 func bodyExtent(img *image.NRGBA) (int, int) {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	if w == 0 || h == 0 {
@@ -195,7 +195,7 @@ func bodyExtent(img *image.NRGBA) (int, int) {
 	return cutX, cutY
 }
 
-// cumulativeExtent는 질량 누적 비율 massFrac를 커버하는 가장 좁은 연속 구간의 길이를 반환합니다.
+// cumulativeExtent returns the length of the narrowest contiguous span covering the cumulative mass ratio massFrac.
 func cumulativeExtent(mass []float64, massFrac float64) int {
 	total := 0.0
 	for _, v := range mass {

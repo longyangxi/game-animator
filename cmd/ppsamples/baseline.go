@@ -9,10 +9,11 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-const aThresh = 10 // sprite 패키지와 동일한 빈 픽셀 기준
+const aThresh = 10 // same empty-pixel threshold as the sprite package
 
-// jpegRoundTrip은 합성 이미지를 JPEG로 인코딩/디코딩해 실제 AI 출력처럼
-// 4:2:0 색차 subsampling 아티팩트(블록 노이즈, 경계 색번짐)를 입힌다.
+// jpegRoundTrip encodes/decodes a synthetic image through JPEG to introduce
+// 4:2:0 chroma subsampling artifacts (block noise, edge color bleed) that mimic
+// real AI output.
 func jpegRoundTrip(im *image.NRGBA, q int) *image.NRGBA {
 	var buf bytes.Buffer
 	_ = jpeg.Encode(&buf, im, &jpeg.Options{Quality: q})
@@ -22,8 +23,9 @@ func jpegRoundTrip(im *image.NRGBA, q int) *image.NRGBA {
 	return out
 }
 
-// naiveMatte는 "기술 없음" 배경 제거: 순수 RGB 거리 임계값 하나로만 자른다.
-// soft alpha, despill, flood fill, morphology 없음 → 헤일로/잔여물이 남는다.
+// naiveMatte is the "no technique" background removal: it cuts using a single
+// pure RGB distance threshold. No soft alpha, despill, flood fill, or
+// morphology -> halos/residue remain.
 func naiveMatte(src image.Image, key color.NRGBA, tol float64) *image.NRGBA {
 	b := src.Bounds()
 	out := image.NewNRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
@@ -33,14 +35,15 @@ func naiveMatte(src image.Image, key color.NRGBA, tol float64) *image.NRGBA {
 		dg := float64(out.Pix[i+1]) - float64(key.G)
 		db := float64(out.Pix[i+2]) - float64(key.B)
 		if dr*dr+dg*dg+db*db <= tol*tol {
-			out.Pix[i+3] = 0 // 배경 → 투명 (RGB는 그대로 둬 헤일로 잔존)
+			out.Pix[i+3] = 0 // background -> transparent (RGB left intact, so halo remains)
 		}
 	}
 	return out
 }
 
-// equalSplitExtract는 "기술 없음" 프레임 추출: 스트립을 n등분해 각 칸의
-// 콘텐츠를 bbox 중심으로 셀에 배치한다. (projection/DP 없음, centroid 없음)
+// equalSplitExtract is the "no technique" frame extraction: it splits the strip
+// into n equal parts and places each part's content into a cell by bbox center.
+// (No projection/DP, no centroid.)
 func equalSplitExtract(strip *image.NRGBA, n, cellW, cellH, margin int) []*image.NRGBA {
 	w, h := strip.Rect.Dx(), strip.Rect.Dy()
 	var frames []*image.NRGBA
@@ -52,7 +55,7 @@ func equalSplitExtract(strip *image.NRGBA, n, cellW, cellH, margin int) []*image
 	return frames
 }
 
-// placeBBoxCenter는 [x0,x1) 구간 콘텐츠를 bbox 중심 기준으로 셀 중앙에 둔다.
+// placeBBoxCenter centers the content of the [x0,x1) span in the cell by bbox center.
 func placeBBoxCenter(strip *image.NRGBA, x0, x1, h, cellW, cellH, margin int) *image.NRGBA {
 	minX, minY, maxX, maxY := x1, h, x0-1, -1
 	for x := x0; x < x1; x++ {
@@ -96,13 +99,13 @@ func placeBBoxCenter(strip *image.NRGBA, x0, x1, h, cellW, cellH, margin int) *i
 	}
 	scaled := image.NewNRGBA(image.Rect(0, 0, sw, sh))
 	xdraw.CatmullRom.Scale(scaled, scaled.Rect, src, src.Rect, xdraw.Over, nil)
-	left := (cellW - sw) / 2 // bbox 중심을 셀 중앙에 (← 기술 없음의 핵심)
+	left := (cellW - sw) / 2 // bbox center at the cell center (<- the crux of "no technique")
 	top := cellH - margin - sh
 	xdraw.Copy(cell, image.Point{X: left, Y: top}, scaled, scaled.Rect, xdraw.Over, nil)
 	return cell
 }
 
-// overOn은 src를 bg 위에 알파 합성한 새 이미지를 만든다(투명 결과 시연용).
+// overOn builds a new image by alpha-compositing src over bg (for demoing transparent results).
 func overOn(bg, src *image.NRGBA) *image.NRGBA {
 	out := image.NewNRGBA(bg.Rect)
 	copy(out.Pix, bg.Pix)
@@ -110,12 +113,12 @@ func overOn(bg, src *image.NRGBA) *image.NRGBA {
 	return out
 }
 
-// paste는 src를 dst의 (x,y)에 붙인다.
+// paste pastes src onto dst at (x,y).
 func paste(dst, src *image.NRGBA, x, y int) {
 	xdraw.Copy(dst, image.Point{X: x, Y: y}, src, src.Rect, xdraw.Over, nil)
 }
 
-// resizeW는 가로 폭 targetW로 비율 유지 리샘플한다.
+// resizeW resamples to width targetW, preserving aspect ratio.
 func resizeW(im *image.NRGBA, targetW int) *image.NRGBA {
 	if im.Rect.Dx() == targetW {
 		return im

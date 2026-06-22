@@ -6,17 +6,17 @@ import (
 	"math"
 )
 
-// 색차 평면(CbCr) 기반 적응형 매팅 파라미터.
-// 루마(Y)를 무시하고 채도/색상만으로 키를 분리하므로 JPEG 4:2:0 압축에 강건합니다.
+// Adaptive matting parameters based on the chroma (CbCr) plane.
+// Luma (Y) is ignored and the key is separated by saturation/hue alone, so it is robust to JPEG 4:2:0 compression.
 const (
-	chromaIn     = 24.0  // CbCr 거리 이 이하 → 완전 투명 (키 색)
-	chromaOut    = 72.0  // CbCr 거리 이 이상 → 완전 불투명 (피사체)
-	despillBand  = 100.0 // 이 거리 안쪽 픽셀은 키 색조 번짐(despill) 보정 대상
-	despillScale = 0.92  // despill 강도 (키 방향 채도 억제율)
-	floodTol     = 88.0  // 테두리 시드 플러드필이 배경으로 간주하는 CbCr 거리(관대)
+	chromaIn     = 24.0  // CbCr distance at or below this → fully transparent (key color)
+	chromaOut    = 72.0  // CbCr distance at or above this → fully opaque (subject)
+	despillBand  = 100.0 // pixels within this distance are candidates for key-tint spill (despill) correction
+	despillScale = 0.92  // despill strength (saturation suppression rate toward the key)
+	floodTol     = 88.0  // CbCr distance below which the border-seed flood fill treats a pixel as background (lenient)
 )
 
-// ycc는 BT.601 YCbCr 좌표입니다 (8bit, 128 중심).
+// ycc holds BT.601 YCbCr coordinates (8-bit, centered at 128).
 type ycc struct{ y, cb, cr float64 }
 
 func toYCC(r, g, b uint8) ycc {
@@ -46,7 +46,7 @@ func u8(v float64) uint8 {
 	return uint8(v + 0.5)
 }
 
-// smoothstep은 Hermite 보간으로 부드러운 0→1 전이를 만듭니다 (가장자리 페더링).
+// smoothstep produces a smooth 0→1 transition via Hermite interpolation (edge feathering).
 func smoothstep(edge0, edge1, x float64) float64 {
 	if edge1 <= edge0 {
 		return 0
@@ -60,7 +60,7 @@ func smoothstep(edge0, edge1, x float64) float64 {
 	return t * t * (3 - 2*t)
 }
 
-// ToNRGBA는 임의 이미지를 좌상단 원점 NRGBA로 변환합니다.
+// ToNRGBA converts an arbitrary image to a top-left-origin NRGBA.
 func ToNRGBA(src image.Image) *image.NRGBA {
 	if n, ok := src.(*image.NRGBA); ok && n.Rect.Min == (image.Point{}) {
 		return n
@@ -70,9 +70,10 @@ func ToNRGBA(src image.Image) *image.NRGBA {
 	return dst
 }
 
-// DetectBackground는 테두리 픽셀의 색차(CbCr) 최빈 클러스터로 배경 키 색을 추정합니다.
-// 단순 RGB 평균이 아니라 CbCr 평면 양자화 히스토그램의 모드를 찾으므로
-// 그라데이션/압축 노이즈가 섞인 배경에서도 안정적으로 지배 색상을 잡습니다.
+// DetectBackground estimates the background key color from the most frequent chroma (CbCr)
+// cluster of the border pixels. Rather than a plain RGB average, it finds the mode of a
+// quantized CbCr-plane histogram, so it reliably captures the dominant color even on
+// backgrounds with gradients or compression noise.
 func DetectBackground(img *image.NRGBA) [3]uint8 {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	if w == 0 || h == 0 {
@@ -84,19 +85,19 @@ func DetectBackground(img *image.NRGBA) [3]uint8 {
 	}
 	bins := map[int]*acc{}
 	total := 0
-	var magN, magR, magG, magB int // 마젠타 계열(R·B 강, G 약) 누적
+	var magN, magR, magG, magB int // accumulate magenta-family pixels (strong R·B, weak G)
 	visit := func(x, y int) {
 		i := img.PixOffset(x, y)
 		r, g, b := img.Pix[i], img.Pix[i+1], img.Pix[i+2]
 		total++
-		if r > 150 && b > 150 && g < 120 { // 마젠타 계열
+		if r > 150 && b > 150 && g < 120 { // magenta family
 			magN++
 			magR += int(r)
 			magG += int(g)
 			magB += int(b)
 		}
 		c := toYCC(r, g, b)
-		key := int(c.cb)>>3<<6 | int(c.cr)>>3 // 8단위 CbCr 양자화
+		key := int(c.cb)>>3<<6 | int(c.cr)>>3 // CbCr quantized in steps of 8
 		a := bins[key]
 		if a == nil {
 			a = &acc{}
@@ -107,8 +108,9 @@ func DetectBackground(img *image.NRGBA) [3]uint8 {
 		a.sg += int(g)
 		a.sb += int(b)
 	}
-	// 넓은 포즈(걷기 등)는 테두리 전체에 닿아 캐릭터 색이 키 추정을 오염시킨다.
-	// 모서리(코너) 사각 패치는 거의 항상 배경이므로 코너를 중심으로 샘플링한다.
+	// Wide poses (walking, etc.) touch the entire border, so the character color contaminates
+	// the key estimate. The corner square patches are almost always background, so sample
+	// primarily around the corners.
 	cw, ch := w/5, h/5
 	if cw < 2 {
 		cw = w
@@ -127,7 +129,7 @@ func DetectBackground(img *image.NRGBA) [3]uint8 {
 	corner(w-cw, 0, w, ch)
 	corner(0, h-ch, cw, h)
 	corner(w-cw, h-ch, w, h)
-	// 얇은 테두리도 보조로 (코너가 캐릭터에 가린 드문 경우 대비)
+	// Also use the thin border as a fallback (for the rare case where corners are covered by the character)
 	for x := 0; x < w; x++ {
 		visit(x, 0)
 		visit(x, h-1)
@@ -136,9 +138,10 @@ func DetectBackground(img *image.NRGBA) [3]uint8 {
 		visit(0, y)
 		visit(w-1, y)
 	}
-	// 마젠타 바이어스: 이 파이프라인은 항상 마젠타 키를 의도하므로, 테두리/코너에
-	// 마젠타 계열이 충분히(샘플의 12%+) 존재하면 — 넓은/누운 포즈가 코너를 채워
-	// 전체 최빈색이 캐릭터 색이 되더라도 — 마젠타 클러스터를 키로 확정한다.
+	// Magenta bias: this pipeline always intends a magenta key, so if the magenta family is
+	// sufficiently present (12%+ of samples) on the border/corners — even when a wide or
+	// reclining pose fills the corners and makes the overall mode the character color — fix
+	// the magenta cluster as the key.
 	if total > 0 && magN >= total*12/100 {
 		return [3]uint8{uint8(magR / magN), uint8(magG / magN), uint8(magB / magN)}
 	}
@@ -154,18 +157,19 @@ func DetectBackground(img *image.NRGBA) [3]uint8 {
 	return [3]uint8{uint8(best.sr / best.n), uint8(best.sg / best.n), uint8(best.sb / best.n)}
 }
 
-// RemoveBackground는 배경 키를 자동 감지해 색차 평면 매팅으로 투명 처리합니다.
-// (1) CbCr 거리 기반 소프트 알파 램프 → 가장자리 페더링, (2) 색차공간 despill로
-// 키 색조 번짐 제거, (3) 고립 점/핀홀 형태학적 정리.
+// RemoveBackground auto-detects the background key and makes it transparent via chroma-plane matting.
+// (1) a soft alpha ramp based on CbCr distance → edge feathering, (2) chroma-space despill to
+// remove key-tint spill, (3) morphological cleanup of isolated dots/pinholes.
 func RemoveBackground(src image.Image) *image.NRGBA {
 	img := ToNRGBA(src)
 	key := DetectBackground(img)
 	out, frac := matteWith(img, key)
 
-	// 안전장치: 넓은 포즈가 테두리를 채워 키를 캐릭터 색으로 오인하면 매팅이
-	// 배경 대신 캐릭터를 지우거나(불투명 비율 급증) 마젠타 배경을 부분만 지운다
-	// (마젠타 잔여 급증). 이 파이프라인은 항상 마젠타 키를 의도하므로, 두 증상 중
-	// 하나라도 보이면 순수 마젠타(#FF00FF)로 폴백 재매팅해 더 나은 쪽을 택한다.
+	// Safeguard: if a wide pose fills the border and the key is mistaken for the character color,
+	// matting either erases the character instead of the background (opaque ratio spikes) or
+	// removes only part of the magenta background (magenta residue spikes). This pipeline always
+	// intends a magenta key, so if either symptom appears, re-matte as a fallback with pure
+	// magenta (#FF00FF) and take whichever is better.
 	if frac > 0.60 || magentaResidueFrac(out) > 0.025 {
 		out2, frac2 := matteWith(img, [3]uint8{255, 0, 255})
 		betterFrac := frac2 < frac-0.03 && frac2 > 0.02
@@ -174,8 +178,8 @@ func RemoveBackground(src image.Image) *image.NRGBA {
 			out = out2
 		}
 	}
-	// 검색/다크 배경 fallback: 어두운/무채색 키가 감지되면 pure magenta 매팅도
-	// 시도해 더 나은 쪽(마젠타 잔여가 적은 쪽)을 택한다.
+	// Search/dark-background fallback: if a dark/achromatic key is detected, also try pure
+	// magenta matting and take whichever is better (less magenta residue).
 	if !isMagentaKey(key) {
 		out2, frac2 := matteWith(img, [3]uint8{255, 0, 255})
 		if frac2 > 0.02 && magentaResidueFrac(out2) < magentaResidueFrac(out) {
@@ -186,8 +190,8 @@ func RemoveBackground(src image.Image) *image.NRGBA {
 	return out
 }
 
-// magentaResidueFrac은 순수 마젠타에 가까운(CbCr<55) 불투명 픽셀의 전체 대비 비율입니다.
-// 매팅이 마젠타 배경을 다 지웠는지 판정하는 증상 지표입니다.
+// magentaResidueFrac is the fraction of opaque pixels close to pure magenta (CbCr<55) out of the total.
+// It is a symptom indicator for whether matting fully removed the magenta background.
 func magentaResidueFrac(img *image.NRGBA) float64 {
 	mk := toYCC(255, 0, 255)
 	n := 0
@@ -207,13 +211,13 @@ func magentaResidueFrac(img *image.NRGBA) float64 {
 	return float64(n) / float64(total)
 }
 
-// isMagentaKey는 키 색이 마젠타 계열(R·B 강, G 약)인지 판정합니다.
+// isMagentaKey reports whether the key color is in the magenta family (strong R·B, weak G).
 func isMagentaKey(k [3]uint8) bool {
 	return k[0] > 150 && k[2] > 150 && k[1] < 120
 }
 
-// matteWith는 주어진 키로 색차 평면 매팅 + despill + 플러드필을 수행하고,
-// 결과 이미지와 불투명(알파>임계) 픽셀 비율을 반환합니다.
+// matteWith performs chroma-plane matting + despill + flood fill with the given key,
+// and returns the result image and the ratio of opaque (alpha>threshold) pixels.
 func matteWith(img *image.NRGBA, key [3]uint8) (*image.NRGBA, float64) {
 	kc := toYCC(key[0], key[1], key[2])
 	kvb, kvr := kc.cb-128, kc.cr-128
@@ -260,10 +264,11 @@ func matteWith(img *image.NRGBA, key [3]uint8) (*image.NRGBA, float64) {
 	return out, frac
 }
 
-// floodClearBackground는 테두리에서 출발해 키 색에 가까운(관대 허용) 픽셀을 따라
-// 4방향 플러드필하며 알파를 0으로 만듭니다. 소프트 매팅만으로는 못 지우는
-// 그라데이션/노이즈 배경(걷기처럼 넓은 포즈가 키를 흔든 경우)을 연결성 기준으로
-// 확실히 제거하되, 테두리와 단절된 내부 캐릭터 픽셀(설령 키색이어도)은 보존합니다.
+// floodClearBackground starts from the border and 4-way flood fills along pixels close to the
+// key color (lenient tolerance), setting alpha to 0. It reliably removes, by connectivity,
+// gradient/noise backgrounds that soft matting alone cannot erase (such as when a wide pose
+// like walking destabilizes the key), while preserving interior character pixels that are
+// disconnected from the border (even if they are the key color).
 func floodClearBackground(out *image.NRGBA, orig *image.NRGBA, kc ycc) {
 	w, h := orig.Rect.Dx(), orig.Rect.Dy()
 	if w < 3 || h < 3 {
@@ -295,7 +300,7 @@ func floodClearBackground(out *image.NRGBA, orig *image.NRGBA, kc ycc) {
 		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		x, y := p%w, p/w
-		out.Pix[p*4+3] = 0 // 배경 → 투명
+		out.Pix[p*4+3] = 0 // background → transparent
 		if x > 0 {
 			push(x-1, y)
 		}
@@ -311,8 +316,8 @@ func floodClearBackground(out *image.NRGBA, orig *image.NRGBA, kc ycc) {
 	}
 }
 
-// cleanupAlpha는 고립된 불투명 점(JPEG 블록 잡티)을 제거하고 1px 핀홀을 메웁니다.
-// 소프트 가장자리는 보존하기 위해 명확히 고립된/둘러싸인 픽셀만 손봅니다.
+// cleanupAlpha removes isolated opaque dots (JPEG block speckle) and fills 1px pinholes.
+// To preserve soft edges, it only touches clearly isolated/surrounded pixels.
 func cleanupAlpha(img *image.NRGBA) {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	if w < 3 || h < 3 {
@@ -337,17 +342,17 @@ func cleanupAlpha(img *image.NRGBA) {
 			nb := opaque(x-1, y) + opaque(x+1, y) + opaque(x, y-1) + opaque(x, y+1) +
 				opaque(x-1, y-1) + opaque(x+1, y-1) + opaque(x-1, y+1) + opaque(x+1, y+1)
 			if orig[y*w+x] > alphaThreshold {
-				if nb == 0 { // 완전 고립된 점 → 제거
+				if nb == 0 { // fully isolated dot → remove
 					img.Pix[i+3] = 0
 				}
-			} else if nb >= 7 { // 거의 둘러싸인 핀홀 → 채움
+			} else if nb >= 7 { // nearly surrounded pinhole → fill
 				img.Pix[i+3] = 255
 			}
 		}
 	}
 }
 
-// colorDist는 RGB 유클리드 거리입니다 (inspect의 잔여 크로마 판정용).
+// colorDist is the RGB Euclidean distance (for inspect's residual-chroma decision).
 func colorDist(r, g, b uint8, bg [3]uint8) float64 {
 	dr := float64(r) - float64(bg[0])
 	dg := float64(g) - float64(bg[1])

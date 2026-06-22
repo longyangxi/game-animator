@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// 폴더 나열: 이미지만 필터링되고 이름순으로 정렬되는지 검증
+// Folder listing: verify only images are kept and they are sorted by name
 func TestListFolderImages(t *testing.T) {
 	dir := t.TempDir()
 	img := image.NewNRGBA(image.Rect(0, 0, 4, 4))
@@ -27,17 +27,17 @@ func TestListFolderImages(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(items) != 2 {
-		t.Fatalf("이미지 2개를 기대했지만 %d개 반환", len(items))
+		t.Fatalf("expected 2 images but got %d", len(items))
 	}
 	if items[0].Name != "a.png" || items[1].Name != "b.png" {
-		t.Fatalf("이름순 정렬 실패: %s, %s", items[0].Name, items[1].Name)
+		t.Fatalf("sort by name failed: %s, %s", items[0].Name, items[1].Name)
 	}
 	if items[0].Size <= 0 || items[0].ModTime <= 0 {
-		t.Fatalf("메타데이터 누락: %+v", items[0])
+		t.Fatalf("missing metadata: %+v", items[0])
 	}
 }
 
-// 썸네일: maxDim 안으로 비율 유지 다운스케일되는지 검증
+// Thumbnail: verify it is downscaled within maxDim while preserving aspect ratio
 func TestLoadImageThumbDownscale(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "big.png")
@@ -60,11 +60,11 @@ func TestLoadImageThumbDownscale(t *testing.T) {
 	}
 	b := thumb.Bounds()
 	if b.Dx() != 200 || b.Dy() != 100 {
-		t.Fatalf("200x100 썸네일을 기대했지만 %dx%d", b.Dx(), b.Dy())
+		t.Fatalf("expected a 200x100 thumbnail but got %dx%d", b.Dx(), b.Dy())
 	}
 }
 
-// 작은 이미지는 재인코딩 없이 원본 dataURL을 그대로 반환
+// A small image is returned as the original dataURL, with no re-encoding
 func TestLoadImageThumbSmallPassthrough(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "small.png")
@@ -82,11 +82,11 @@ func TestLoadImageThumbSmallPassthrough(t *testing.T) {
 		t.Fatal(err)
 	}
 	if url != full {
-		t.Fatal("작은 이미지는 원본 dataURL을 그대로 반환해야 함")
+		t.Fatal("a small image must be returned as the original dataURL unchanged")
 	}
 }
 
-// 갤러리 디렉토리 밖의 파일 삭제는 거부되어야 함
+// Deleting a file outside the gallery directory must be rejected
 func TestDeleteGalleryImageGuard(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "x.png")
@@ -96,9 +96,9 @@ func TestDeleteGalleryImageGuard(t *testing.T) {
 
 	app := NewApp()
 	if err := app.DeleteGalleryImage(path); err == nil {
-		t.Fatal("갤러리 외부 파일 삭제가 허용되면 안 됨")
+		t.Fatal("deleting a file outside the gallery must not be allowed")
 	}
 	if _, err := os.Stat(path); err != nil {
-		t.Fatal("거부된 삭제 요청으로 파일이 사라짐")
+		t.Fatal("file disappeared even though the delete request was rejected")
 	}
 }

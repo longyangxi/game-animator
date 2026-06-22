@@ -1,43 +1,48 @@
-# PerfectPixel 프로바이더 / 모델 / 설정
+# PerfectPixel providers / models / configuration
 
-`ppgen`은 4개 이미지 생성 백엔드를 지원한다. 활성 프로바이더와 키는 다음 순서로 해석된다.
+`ppgen` supports four image-generation backends. The active provider and key are
+resolved in the following order.
 
-1. 설치형 앱 설정 파일 `~/.config/perfectpixel/config.json` (있으면 최우선)
-2. 작업 디렉토리 또는 실행 파일 옆의 `.env` / `.env.local`
-3. OS 환경변수
-4. CLI 플래그 `-provider` / `-key` / `-model` (위 모든 것보다 우선, 강제 지정)
+1. Installed app settings file `~/.config/perfectpixel/config.json` (highest priority if present)
+2. `.env` / `.env.local` next to the working directory or executable
+3. OS environment variables
+4. CLI flags `-provider` / `-key` / `-model` (override all of the above; forced)
 
-프로바이더를 명시하지 않으면 키가 설정된 첫 프로바이더를 자동 선택하며, 기본값은 `gemini`다.
+If no provider is specified, the first provider with a configured key is auto-selected;
+the default is `gemini`.
 
-## 프로바이더별 환경변수 · 모델
+## Environment variables · models per provider
 
-| 프로바이더 | `-provider` 값 | API 키 환경변수 | 기본 모델 | 대체 모델 |
+| Provider | `-provider` value | API key environment variable | Default model | Alternative models |
 |---|---|---|---|---|
 | Gemini (Google AI Studio) | `gemini` | `GEMINI_API_KEY` / `GOOGLE_API_KEY` | `gemini-3-pro-image` | `gemini-3-pro-image-preview`, `gemini-2.5-flash-image` |
 | OpenRouter | `openrouter` | `OPENROUTER_API_KEY` | `google/gemini-3-pro-image-preview` | `google/gemini-2.5-flash-image` |
 | fal.ai | `fal` | `FAL_KEY` / `FAL_API_KEY` | `fal-ai/nano-banana-pro` | `fal-ai/nano-banana`, `fal-ai/flux-pro/v1.1-ultra` |
 | BytePlus (ARK) | `byteplus` | `BYTEPLUS_API_KEY` / `ARK_API_KEY` | `seedream-4-0-250828` | `seedream-3-0-t2i-250415` |
 
-## .env 예시
+## .env example
 
 ```dotenv
-# 사용할 프로바이더의 키만 채우면 된다.
+# Fill in only the key for the provider you want to use.
 GEMINI_API_KEY=
 OPENROUTER_API_KEY=
 FAL_KEY=
 BYTEPLUS_API_KEY=
 ```
 
-## 스타일 키 (`-style`)
+## Style keys (`-style`)
 
-- `pixel` — 진짜 도트 픽셀아트 (공유 팔레트 양자화 + 그리드 스냅), 기본값
-- `chibi` — 2~3등신 귀여운 비율
-- `cartoon` — 부드러운 만화풍
-- `retro16` — 16비트 콘솔풍 제한 팔레트
+- `pixel` — true dot-style pixel art (shared-palette quantization + grid snapping), default
+- `chibi` — cute 2–3 head-tall proportions
+- `cartoon` — soft cartoon style
+- `retro16` — 16-bit console-style limited palette
 
-## 품질·비용 팁
+## Quality / cost tips
 
-- `gemini-3-pro-image`(Nano Banana Pro) 계열이 캐릭터 일관성/모션 품질이 가장 좋다.
-- 상태 1개당 최대 `-attempts`회(기본 3) 재생성하므로, 큰 배치 전에 `-states idle` 한 개로
-  시범 실행해 스타일/품질을 확인하면 비용을 아낄 수 있다.
-- `-all`(100여 상태)은 호출 수가 매우 많다. 실행 전 규모를 사용자에게 알릴 것.
+- The `gemini-3-pro-image` (Nano Banana Pro) family gives the best character
+  consistency / motion quality.
+- Each state is regenerated up to `-attempts` times (default 3), so before a large batch
+  you can save cost by doing a trial run with a single `-states idle` to check
+  style/quality.
+- `-all` (100+ states) makes a very large number of calls. Warn the user about the scale
+  before running.

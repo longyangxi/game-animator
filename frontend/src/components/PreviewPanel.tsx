@@ -23,7 +23,7 @@ interface IProps {
   onExport: () => void;
 }
 
-// 우측 메인 프리뷰 영역: 재생 / 프레임 관리 / 아틀라스
+// Main preview area on the right: playback / frame management / atlas
 export default function PreviewPanel({ state, allStates, directions, cellSize, busy, onUpdateState, onSelect, onRegenerate, onExport }: IProps) {
   const { t, lang } = useI18n();
   const [tab, setTab] = useState<ViewTab>("play");
@@ -247,7 +247,7 @@ function EmptyHero({ hasResults }: { hasResults: boolean }) {
   );
 }
 
-// 클라이언트 사이드 아틀라스 미리보기
+// Client-side atlas preview
 function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSize: number; onExport: () => void }) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);

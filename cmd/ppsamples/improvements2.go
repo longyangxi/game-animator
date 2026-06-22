@@ -8,8 +8,8 @@ import (
 	"perfectpixel/internal/sprite"
 )
 
-// buildOverview는 저장된 전/후 비교 PNG들을 한 장으로 세로 합본해
-// 수정 내역을 한눈에 볼 수 있는 컨택트 시트를 만든다.
+// buildOverview vertically stitches the saved before/after comparison PNGs into
+// a single contact sheet, so the fixes can be seen at a glance.
 func buildOverview() {
 	files := []string{
 		"01-matting.png", "02-segmentation.png", "03-centroid.png",
@@ -34,16 +34,17 @@ func buildOverview() {
 	save("00-overview.png", out)
 }
 
-// transparentStrip은 알파 0 배경의 빈 스트립(이미 배경제거된 상태)을 만든다.
+// transparentStrip builds an empty strip with an alpha-0 background (already background-removed).
 func transparentStrip(w, h int) *image.NRGBA {
 	return newCanvas(w, h, color.NRGBA{0, 0, 0, 0})
 }
 
-// demoBodyExtent는 한 프레임의 뻗은 무기/팔이 전체 스케일을 지배해 모든 프레임을
-// 축소시키던 문제를, body-extent 스케일(extract.go)이 어떻게 막는지
-// 실제 AI 스트립(검을 뻗는 slash 포즈가 섞인 세트)으로 시연한다.
+// demoBodyExtent demonstrates how body-extent scaling (extract.go) prevents the
+// problem where one frame's outstretched weapon/arm dominated the overall scale
+// and shrank every frame, using a real AI strip (a set mixing in a sword-thrust
+// slash pose).
 func demoBodyExtent() {
-	fmt.Println("[5] body-extent scaling (extract.go) — 실제 AI 스트립의 뻗은 무기 outlier")
+	fmt.Println("[5] body-extent scaling (extract.go) — outstretched-weapon outlier in a real AI strip")
 	strip, n := pickSampleStrip("sample/archer/slash-south-east", 5)
 
 	without := bboxSharedExtract(strip, cell, cell, 16)
@@ -56,7 +57,7 @@ func demoBodyExtent() {
 	if hWi > 0 {
 		ratio = hWo / hWi
 	}
-	fmt.Printf("  평균 본체 높이: 없음=%.0fpx  있음=%.0fpx  (없음이 %.0f%%로 축소)\n",
+	fmt.Printf("  mean body height: without=%.0fpx  with=%.0fpx  (without shrinks to %.0f%%)\n",
 		hWo, hWi, ratio*100)
 
 	gray := newCanvas(cell, cell, colBG)
@@ -75,7 +76,7 @@ func demoBodyExtent() {
 	save("05-bodyextent.png", out)
 }
 
-// tightCrop은 콘텐츠 바운딩 박스로 잘라낸 새 이미지를 반환한다.
+// tightCrop returns a new image cropped to the content bounding box.
 func tightCrop(im *image.NRGBA) *image.NRGBA {
 	w, h := im.Rect.Dx(), im.Rect.Dy()
 	minX, minY, maxX, maxY := w, h, -1, -1
@@ -103,7 +104,7 @@ func tightCrop(im *image.NRGBA) *image.NRGBA {
 	return cropRect(im, minX, minY, maxX-minX+1, maxY-minY+1)
 }
 
-// loadFrame은 sample 디렉토리의 frame-NN.png(최종 추출된 단일 포즈)를 읽는다.
+// loadFrame reads frame-NN.png from the sample directory (the final extracted single pose).
 func loadFrame(dir string, idx int) *image.NRGBA {
 	im, err := loadPNG(fmt.Sprintf("%s/frame-%02d.png", dir, idx))
 	if err != nil {
@@ -112,19 +113,20 @@ func loadFrame(dir string, idx int) *image.NRGBA {
 	return im
 }
 
-// demoOverlapRecovery는 실제 AI 포즈 두 개를 마젠타 거터 없이 맞붙여 한 덩어리로
-// 만든 뒤, segment.go의 강제 분할이 이를 2개로 복구하는지 시연한다.
+// demoOverlapRecovery abuts two real AI poses with no magenta gutter into a
+// single blob, then demonstrates whether segment.go's forced split recovers
+// them back into two.
 func demoOverlapRecovery() {
-	fmt.Println("[6] overlap segmentation recovery (segment.go) — 실제 포즈를 거터 없이 맞붙임")
+	fmt.Println("[6] overlap segmentation recovery (segment.go) — real poses abutted with no gutter")
 	const n = 2
 	dir := "sample/ranger/walk"
 	a, b := loadFrame(dir, 2), loadFrame(dir, 3)
 	if a == nil || b == nil {
-		fmt.Println("  [경고] 실제 프레임 없음 → 데모 생략")
+		fmt.Println("  [warning] no real frames -> skipping demo")
 		return
 	}
 	a, b = tightCrop(a), tightCrop(b)
-	// 두 포즈를 8px만 겹치도록(거터 없음) 한 스트립에 바닥 정렬 배치.
+	// Place the two poses on one strip, bottom-aligned, overlapping by just 8px (no gutter).
 	pad := 24
 	overlap := 8
 	stripW := pad + a.Rect.Dx() + b.Rect.Dx() - overlap + pad
@@ -141,7 +143,7 @@ func demoOverlapRecovery() {
 	with := ext.Frames
 	merged := bboxSharedExtract(strip, cell, cell, 16)
 
-	fmt.Printf("  검출 포즈 수: 없음=%d(병합)  있음=%d(복구)\n", len(merged), ext.Found)
+	fmt.Printf("  detected poses: without=%d(merged)  with=%d(recovered)\n", len(merged), ext.Found)
 
 	gray := newCanvas(cell, cell, colBG)
 	woRow := scaleRow(merged, gray, 3)

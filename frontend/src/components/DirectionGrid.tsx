@@ -5,13 +5,13 @@ import { useI18n } from "../i18n";
 import { directionName } from "../i18n/catalog";
 
 interface IProps {
-  states: StateDef[]; // 같은 dirBase에 속한 방향 상태들
+  states: StateDef[]; // Direction states belonging to the same dirBase
   directions: DirectionInfo[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-// 8방향 세트 3x3 미리보기 그리드
+// 8-direction set 3x3 preview grid
 export default function DirectionGrid({ states, directions, selectedId, onSelect }: IProps) {
   const { t, lang } = useI18n();
   const cells: (DirectionInfo | null)[] = Array(9).fill(null);
@@ -57,10 +57,10 @@ export default function DirectionGrid({ states, directions, selectedId, onSelect
   );
 }
 
-// 작은 자동 재생 프리뷰 (컨트롤 없음)
+// Small auto-playing preview (no controls)
 function MiniAnim({ frames, fps }: { frames: string[]; fps: number }) {
   const [idx, setIdx] = useState(0);
-  // frames 배열은 렌더마다 새로 생성되므로 길이/fps 변화에만 인터벌을 재설정 (리렌더 시 애니메이션 리셋 방지)
+  // The frames array is recreated on every render, so only reset the interval on length/fps changes (prevents the animation from resetting on re-render)
   useEffect(() => {
     if (frames.length <= 1) return;
     const t = setInterval(() => setIdx((i) => (i + 1) % frames.length), 1000 / Math.max(1, Math.min(30, fps)));

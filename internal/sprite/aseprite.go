@@ -6,8 +6,8 @@ import (
 	"sort"
 )
 
-// Aseprite 호환 스프라이트시트 JSON (array form).
-// Phaser/Pixi/Unity/Godot의 Aseprite 임포터가 그대로 읽을 수 있는 표준 교환 포맷입니다.
+// Aseprite-compatible spritesheet JSON (array form).
+// A standard interchange format that the Aseprite importers of Phaser/Pixi/Unity/Godot can read as-is.
 
 type aseRect struct {
 	X int `json:"x"`
@@ -36,7 +36,7 @@ type aseFrameTag struct {
 	From      int    `json:"from"`
 	To        int    `json:"to"`
 	Direction string `json:"direction"`
-	Repeat    string `json:"repeat,omitempty"` // "1" = 1회 재생 (Aseprite 1.3+)
+	Repeat    string `json:"repeat,omitempty"` // "1" = play once (Aseprite 1.3+)
 }
 
 type aseMeta struct {
@@ -54,9 +54,9 @@ type aseSheet struct {
 	Meta   aseMeta    `json:"meta"`
 }
 
-// BuildAsepriteJSON은 매니페스트를 Aseprite 호환 시트 JSON으로 변환합니다.
+// BuildAsepriteJSON converts a manifest into Aseprite-compatible sheet JSON.
 func BuildAsepriteJSON(m Manifest) ([]byte, error) {
-	// 행(row) 순서대로 상태 정렬 → 프레임 인덱스가 시트 배치와 일치
+	// sort states by row order → frame indices match the sheet layout
 	type namedAnim struct {
 		name string
 		anim AnimationEntry

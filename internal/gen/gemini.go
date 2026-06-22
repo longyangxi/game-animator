@@ -1,4 +1,4 @@
-// Package gen은 AI 이미지 생성 프로바이더 클라이언트를 제공합니다.
+// Package gen provides clients for AI image generation providers.
 package gen
 
 import (
@@ -14,33 +14,33 @@ import (
 	"time"
 )
 
-// DefaultModel은 기본 이미지 생성 모델입니다 (Nano Banana Pro / Gemini 3 Pro Image).
-// 참조 이미지 정체성 유지와 복잡한 레이아웃 지시 준수가 크게 개선되어
-// 스프라이트 스트립의 프레임 간 안정성에 가장 유리합니다.
+// DefaultModel is the default image generation model (Nano Banana Pro / Gemini 3 Pro Image).
+// Its greatly improved reference-image identity preservation and adherence to complex
+// layout instructions make it the best choice for frame-to-frame stability in sprite strips.
 const DefaultModel = "gemini-3-pro-image"
 
-// modelFallbacks는 기본 모델이 아직 제공되지 않는 키/리전을 위한 폴백 체인입니다.
-// 404(모델 없음)일 때만 순서대로 시도합니다.
+// modelFallbacks is the fallback chain for keys/regions where the default model is not yet available.
+// It is tried in order only on a 404 (model not found).
 var modelFallbacks = []string{
 	"gemini-3-pro-image-preview",
 	"gemini-3.1-flash-image",
 	"gemini-2.5-flash-image",
 }
 
-var errModelNotFound = errors.New("요청한 모델을 찾을 수 없습니다")
+var errModelNotFound = errors.New("the requested model could not be found")
 
 const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
 
-// Client는 Gemini 이미지 생성 API 클라이언트입니다.
+// Client is a client for the Gemini image generation API.
 type Client struct {
 	APIKey string
 	Model  string
 	HTTP   *http.Client
 
-	endpoint string // 테스트용 오버라이드 (빈 값이면 apiEndpoint)
+	endpoint string // test override (uses apiEndpoint when empty)
 }
 
-// NewClient는 새 Gemini 클라이언트를 생성합니다.
+// NewClient creates a new Gemini client.
 func NewClient(apiKey, model string) *Client {
 	if model == "" {
 		model = DefaultModel
@@ -97,11 +97,11 @@ type apiError struct {
 	Status  string `json:"status"`
 }
 
-// GenerateImage는 프롬프트와 참조 이미지(PNG 바이트)로 이미지를 생성합니다.
-// aspectRatio는 "1:1", "16:9", "21:9" 등을 지원하며 빈 문자열이면 생략됩니다.
+// GenerateImage generates an image from a prompt and reference images (PNG bytes).
+// aspectRatio supports values like "1:1", "16:9", "21:9"; it is omitted when empty.
 func (c *Client) GenerateImage(ctx context.Context, prompt string, refImages [][]byte, aspectRatio string) ([]byte, error) {
 	if c.APIKey == "" {
-		return nil, errors.New("API 키가 설정되지 않았습니다. 설정에서 Gemini API 키를 입력해 주세요")
+		return nil, errors.New("API key is not set. Please enter your Gemini API key in the settings")
 	}
 
 	parts := make([]genPart, 0, len(refImages)+1)
@@ -115,9 +115,9 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, refImages [][
 	}
 	parts = append(parts, genPart{Text: prompt})
 
-	// 모델별 요청 본문: Gemini 3 Pro는 와이드 스트립에서 2K 해상도를 지원해
-	// 프레임당 픽셀 수가 늘어나 추출 품질이 크게 향상됩니다.
-	// 폴백 모델은 imageSize를 지원하지 않으므로 모델에 따라 본문을 다시 만듭니다.
+	// Per-model request body: Gemini 3 Pro supports 2K resolution on wide strips, which
+	// increases the pixels per frame and greatly improves extraction quality.
+	// Fallback models do not support imageSize, so the body is rebuilt depending on the model.
 	buildBody := func(model string) ([]byte, error) {
 		cfg := &genConfig{ResponseModalities: []string{"TEXT", "IMAGE"}}
 		if aspectRatio != "" {
@@ -134,7 +134,7 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, refImages [][
 	}
 	reqBody, err := buildBody(c.Model)
 	if err != nil {
-		return nil, fmt.Errorf("요청 직렬화 실패: %w", err)
+		return nil, fmt.Errorf("failed to serialize request: %w", err)
 	}
 
 	var lastErr error
@@ -149,7 +149,7 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, refImages [][
 		}
 		lastErr = err
 
-		// 모델 미제공(404) → 폴백 체인으로 즉시 교체 (시도 횟수 미차감)
+		// Model not available (404) -> switch to the fallback chain immediately (does not consume an attempt).
 		if errors.Is(err, errModelNotFound) {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -164,7 +164,7 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, refImages [][
 			fallbacks = fallbacks[1:]
 			tried[model] = true
 			if reqBody, err = buildBody(model); err != nil {
-				return nil, fmt.Errorf("요청 직렬화 실패: %w", err)
+				return nil, fmt.Errorf("failed to serialize request: %w", err)
 			}
 			continue
 		}
@@ -200,53 +200,53 @@ func (c *Client) doRequest(ctx context.Context, model string, body []byte) (img 
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		// http.Client.Timeout도 context.DeadlineExceeded로 감싸져 온다. 이미 한 번
-		// 제한 시간을 모두 쓴 요청을 재시도하면 UI가 최대 3배 오래 멈춰 보인다.
+		// http.Client.Timeout also comes wrapped as context.DeadlineExceeded. Retrying a request
+		// that has already used up its full timeout would make the UI appear frozen up to 3x longer.
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, false, err
 		}
-		return nil, true, fmt.Errorf("네트워크 오류: %w", err)
+		return nil, true, fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 	if err != nil {
-		return nil, true, fmt.Errorf("응답 읽기 실패: %w", err)
+		return nil, true, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, false, fmt.Errorf("모델 %q: %w", model, errModelNotFound)
+			return nil, false, fmt.Errorf("model %q: %w", model, errModelNotFound)
 		}
 		retryable = resp.StatusCode == 429 || resp.StatusCode >= 500
 		var parsed genResponse
 		if json.Unmarshal(respBytes, &parsed) == nil && parsed.Error != nil {
-			return nil, retryable, fmt.Errorf("Gemini API 오류 (%d): %s", resp.StatusCode, parsed.Error.Message)
+			return nil, retryable, fmt.Errorf("Gemini API error (%d): %s", resp.StatusCode, parsed.Error.Message)
 		}
-		return nil, retryable, fmt.Errorf("Gemini API 오류 (HTTP %d)", resp.StatusCode)
+		return nil, retryable, fmt.Errorf("Gemini API error (HTTP %d)", resp.StatusCode)
 	}
 
 	var parsed genResponse
 	if err := json.Unmarshal(respBytes, &parsed); err != nil {
-		return nil, false, fmt.Errorf("응답 파싱 실패: %w", err)
+		return nil, false, fmt.Errorf("failed to parse response: %w", err)
 	}
 	if len(parsed.Candidates) == 0 {
-		return nil, true, errors.New("이미지 생성 결과가 비어 있습니다")
+		return nil, true, errors.New("the image generation result is empty")
 	}
 	for _, part := range parsed.Candidates[0].Content.Parts {
 		if part.InlineData != nil && part.InlineData.Data != "" {
 			data, err := base64.StdEncoding.DecodeString(part.InlineData.Data)
 			if err != nil {
-				return nil, false, fmt.Errorf("이미지 디코딩 실패: %w", err)
+				return nil, false, fmt.Errorf("failed to decode image: %w", err)
 			}
 			return data, false, nil
 		}
 	}
 	reason := parsed.Candidates[0].FinishReason
-	return nil, true, fmt.Errorf("응답에 이미지가 없습니다 (사유: %s)", reason)
+	return nil, true, fmt.Errorf("the response contains no image (reason: %s)", reason)
 }
 
-// ValidateKey는 API 키 유효성을 가볍게 확인합니다.
+// ValidateKey performs a lightweight check of the API key's validity.
 func (c *Client) ValidateKey(ctx context.Context) error {
 	url := "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -256,14 +256,14 @@ func (c *Client) ValidateKey(ctx context.Context) error {
 	req.Header.Set("x-goog-api-key", c.APIKey)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return fmt.Errorf("네트워크 오류: %w", err)
+		return fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	}
 	if resp.StatusCode == 400 || resp.StatusCode == 401 || resp.StatusCode == 403 {
-		return errors.New("API 키가 유효하지 않습니다")
+		return errors.New("the API key is invalid")
 	}
-	return fmt.Errorf("키 확인 실패 (HTTP %d)", resp.StatusCode)
+	return fmt.Errorf("key validation failed (HTTP %d)", resp.StatusCode)
 }

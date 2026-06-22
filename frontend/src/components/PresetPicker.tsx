@@ -13,12 +13,12 @@ interface IProps {
   onClose: () => void;
 }
 
-// 100개 상황 키워드를 카테고리별로 묶고 검색으로 빠르게 찾는 프리셋 선택기.
+// Preset picker that groups 100 situation keywords by category and lets you find them quickly via search.
 export default function PresetPicker({ presets, usedNames, onAdd, onClose }: IProps) {
   const { t, lang } = useI18n();
   const [query, setQuery] = useState("");
 
-  // 검색 필터 (번역 라벨 / 한글 라벨 / 영문 이름 / 카테고리 부분일치)
+  // Search filter (partial match on translated label / Korean label / English name / category)
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return presets;
@@ -32,7 +32,7 @@ export default function PresetPicker({ presets, usedNames, onAdd, onClose }: IPr
     );
   }, [presets, query, lang]);
 
-  // 카탈로그 등장 순서를 유지하며 카테고리별로 그룹화
+  // Group by category while preserving the catalog's original ordering
   const groups = useMemo(() => {
     const map = new Map<string, PresetInfo[]>();
     for (const p of filtered) {

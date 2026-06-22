@@ -13,7 +13,7 @@ export interface IProviderInfo {
   hasKey: boolean;
   keyPreview: string;
   model: string;
-  models?: string[]; // 선택 가능한 모델 목록 (최신 모델이 맨 앞)
+  models?: string[]; // List of selectable models (most recent model first)
 }
 
 export interface ISettings {
@@ -35,7 +35,7 @@ const PROVIDERS: { key: string; label: string; placeholder: string }[] = [
   { key: "byteplus", label: "BytePlus", placeholder: "ark-..." },
 ];
 
-// 멀티 프로바이더 설정 모달 (shadcn Dialog)
+// Multi-provider settings modal (shadcn Dialog)
 export default function SettingsModal({ settings, onClose, onSaved }: IProps) {
   const { t, lang, setLang } = useI18n();
   const activeHasKey = !!settings.providers?.[settings.provider]?.hasKey;

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// maxOpaqueColHeight는 프레임에서 가장 키 큰 불투명 열의 높이를 반환합니다.
+// maxOpaqueColHeight returns the height of the tallest opaque column in the frame.
 func maxOpaqueColHeight(f *image.NRGBA) int {
 	w, h := f.Rect.Dx(), f.Rect.Dy()
 	best := 0
@@ -26,36 +26,36 @@ func maxOpaqueColHeight(f *image.NRGBA) int {
 	return best
 }
 
-// TestExtractBodyExtentScale는 한 프레임의 길게 뻗은 얇은 팔다리(가로 outlier)가
-// 전체 스트립 스케일을 과대 산정해 정상 프레임 본체까지 축소시키지 않는지 검증합니다.
+// TestExtractBodyExtentScale verifies that one frame's long, thin extended limb (a horizontal
+// outlier) does not overestimate the whole strip's scale and shrink the normal frames' bodies too.
 //
-// 셀 100×100, margin 8 → 가용 84×84. 정상 토르소는 60×60.
-// 한 프레임만 가로로 폭 200까지 뻗는 얇은 팔을 가진다.
-//   - bbox 기반(구): maxW=200 → scale≈84/200≈0.42 → 정상 토르소 ~25px로 축소.
-//   - bodyExtent(신): 질량 80%가 60px 본체에 모여 폭≈60 → scale=1 → 토르소 ~60px 유지.
+// Cell 100×100, margin 8 → available 84×84. A normal torso is 60×60.
+// Only one frame has a thin arm extending horizontally out to a width of 200.
+//   - bbox-based (old): maxW=200 → scale≈84/200≈0.42 → normal torso shrinks to ~25px.
+//   - bodyExtent (new): 80% of the mass is concentrated in the 60px body so width≈60 → scale=1 → torso stays ~60px.
 func TestExtractBodyExtentScale(t *testing.T) {
-	// 1000px 폭에 250px 슬롯 4개. 슬롯마다 명확한 마젠타 거터로 분리한다.
+	// 1000px wide with four 250px slots. Each slot is separated by a clear magenta gutter.
 	strip := image.NewNRGBA(image.Rect(0, 0, 1000, 100))
-	// 정상 프레임 3개: 60×60 토르소 (각 슬롯 중앙)
+	// 3 normal frames: 60×60 torso (centered in each slot)
 	fillBox(strip, 95, 20, 154, 79, 200, 100, 50)
 	fillBox(strip, 595, 20, 654, 79, 200, 100, 50)
 	fillBox(strip, 845, 20, 904, 79, 200, 100, 50)
-	// outlier 프레임(슬롯2): 60×60 토르소 + 슬롯 안에서 우측으로 뻗는 얇은(4px) 팔.
-	// bbox 폭은 145지만 본체(질량 80%)는 ~56px.
+	// outlier frame (slot 2): 60×60 torso + a thin (4px) arm extending right within the slot.
+	// The bbox width is 145, but the body (80% of mass) is ~56px.
 	fillBox(strip, 345, 20, 404, 79, 200, 100, 50)
 	fillBox(strip, 405, 47, 490, 50, 200, 100, 50)
 
 	res := ExtractFrames(strip, 4, 100, 100, 8)
 	if res.Found != 4 {
-		t.Fatalf("프레임 수 오류: %d (%v)", res.Found, res.Warnings)
+		t.Fatalf("wrong frame count: %d (%v)", res.Found, res.Warnings)
 	}
 
-	// 정상 프레임(팔 없음)의 본체 높이가 outlier에 휘둘려 축소되지 않아야 한다.
-	// bbox 기반이면 ~25px, bodyExtent면 ~60px. 임계값 45px로 구분.
+	// The body height of a normal frame (no arm) must not be shrunk by the outlier.
+	// bbox-based gives ~25px, bodyExtent gives ~60px. Distinguish with a 45px threshold.
 	for _, i := range []int{0, 2, 3} {
 		hgt := maxOpaqueColHeight(res.Frames[i])
 		if hgt < 45 {
-			t.Fatalf("프레임 %d 본체가 outlier 때문에 축소됨: height=%d (bbox 스케일 회귀 의심)", i+1, hgt)
+			t.Fatalf("frame %d body shrunk by the outlier: height=%d (suspected bbox-scale regression)", i+1, hgt)
 		}
 	}
 }

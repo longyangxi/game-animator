@@ -15,15 +15,15 @@ import (
 	"perfectpixel/internal/gen"
 )
 
-// TestPipelineLive는 실제 AI(fal)로 스트립 생성 → 배경 제거 → 프레임 추출까지
-// 전체 파이프라인을 검증합니다. PP_LIVE_TEST=1 + FAL_KEY 설정 시에만 실행됩니다.
+// TestPipelineLive verifies the full pipeline with a real AI (fal): strip generation →
+// background removal → frame extraction. It runs only when PP_LIVE_TEST=1 + FAL_KEY are set.
 func TestPipelineLive(t *testing.T) {
 	if os.Getenv("PP_LIVE_TEST") != "1" {
-		t.Skip("PP_LIVE_TEST=1 설정 시에만 실행")
+		t.Skip("runs only when PP_LIVE_TEST=1 is set")
 	}
 	key := os.Getenv("FAL_KEY")
 	if key == "" {
-		t.Skip("FAL_KEY 미설정")
+		t.Skip("FAL_KEY not set")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -38,7 +38,7 @@ func TestPipelineLive(t *testing.T) {
 	desc := "a small knight with silver armor and a blue plume on the helmet"
 	style := StylePresets["pixel"]
 
-	// 앱과 동일한 품질 기반 자동 재시도 로직 (최대 3회)
+	// quality-based automatic retry logic, same as the app (up to 3 times)
 	feedback := ""
 	var found int
 	var frames []*image.NRGBA
@@ -47,11 +47,11 @@ func TestPipelineLive(t *testing.T) {
 		prompt := BuildStripPrompt(desc, style, spec, feedback)
 		raw, err := c.GenerateImage(ctx, prompt, nil, AspectForFrames(expected))
 		if err != nil {
-			t.Fatalf("[시도 %d] 스트립 생성 실패: %v", attempt, err)
+			t.Fatalf("[attempt %d] strip generation failed: %v", attempt, err)
 		}
 		img, err := png.Decode(bytes.NewReader(raw))
 		if err != nil {
-			t.Fatalf("[시도 %d] PNG 디코딩 실패: %v", attempt, err)
+			t.Fatalf("[attempt %d] PNG decoding failed: %v", attempt, err)
 		}
 		nimg := ToNRGBA(img)
 		bgKey := DetectBackground(nimg)
@@ -60,7 +60,7 @@ func TestPipelineLive(t *testing.T) {
 		found = res.Found
 		frames = res.Frames
 		insp = InspectFrames(frames, bgKey, nil)
-		t.Logf("[시도 %d] 추출 %d/%d개, 추출 경고: %v, 품질 오류: %v, 품질 경고: %v",
+		t.Logf("[attempt %d] extracted %d/%d, extraction warnings: %v, quality errors: %v, quality warnings: %v",
 			attempt, found, expected, res.Warnings, insp.Errors, insp.Warnings)
 
 		savePNG(t, filepath.Join(outDir, fmt.Sprintf("strip-attempt%d.png", attempt)), clean)
@@ -78,14 +78,14 @@ func TestPipelineLive(t *testing.T) {
 	}
 
 	if found != expected {
-		t.Fatalf("자동 재시도 후에도 프레임 수 불일치: %d/%d (출력: %s)", found, expected, outDir)
+		t.Fatalf("frame count still mismatched after automatic retries: %d/%d (output: %s)", found, expected, outDir)
 	}
 	if !insp.Ok() {
-		t.Fatalf("자동 재시도 후에도 품질 오류 잔존: %v (출력: %s)", insp.Errors, outDir)
+		t.Fatalf("quality errors still remain after automatic retries: %v (output: %s)", insp.Errors, outDir)
 	}
 	for i, f := range frames {
 		savePNG(t, filepath.Join(outDir, fmt.Sprintf("frame-%02d.png", i)), f)
-		// 각 프레임에 실제 콘텐츠 픽셀이 충분해야 함 (셀의 1% 이상)
+		// each frame must have enough actual content pixels (at least 1% of the cell)
 		solid := 0
 		for p := 3; p < len(f.Pix); p += 4 {
 			if f.Pix[p] > 128 {
@@ -93,19 +93,19 @@ func TestPipelineLive(t *testing.T) {
 			}
 		}
 		if solid < 256*256/100 {
-			t.Fatalf("프레임 %d 콘텐츠 부족: %d픽셀", i, solid)
+			t.Fatalf("frame %d has insufficient content: %d pixels", i, solid)
 		}
 	}
-	t.Logf("E2E 성공: %d프레임 추출, 결과물: %s", found, outDir)
+	t.Logf("E2E success: extracted %d frames, output: %s", found, outDir)
 }
 
 func savePNG(t *testing.T, path string, img image.Image) {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
-		t.Fatalf("PNG 인코딩 실패: %v", err)
+		t.Fatalf("PNG encoding failed: %v", err)
 	}
 	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
-		t.Fatalf("파일 저장 실패: %v", err)
+		t.Fatalf("file save failed: %v", err)
 	}
 }

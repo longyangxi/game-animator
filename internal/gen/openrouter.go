@@ -15,14 +15,14 @@ import (
 
 const openRouterEndpoint = "https://openrouter.ai/api/v1/chat/completions"
 
-// OpenRouter는 OpenRouter 경유 이미지 생성 클라이언트입니다.
+// OpenRouter is an image generation client that goes through OpenRouter.
 type OpenRouter struct {
 	APIKey string
 	Model  string
 	HTTP   *http.Client
 }
 
-// NewOpenRouter는 새 OpenRouter 클라이언트를 생성합니다.
+// NewOpenRouter creates a new OpenRouter client.
 func NewOpenRouter(apiKey, model string) *OpenRouter {
 	if model == "" {
 		model = DefaultModelFor(ProviderOpenRouter)
@@ -68,13 +68,13 @@ type orResponse struct {
 	} `json:"error"`
 }
 
-// GenerateImage는 OpenRouter chat completions API로 이미지를 생성합니다.
+// GenerateImage generates an image with the OpenRouter chat completions API.
 func (c *OpenRouter) GenerateImage(ctx context.Context, prompt string, refImages [][]byte, aspectRatio string) ([]byte, error) {
 	if c.APIKey == "" {
-		return nil, errors.New("OpenRouter API 키가 설정되지 않았습니다. 설정에서 입력해 주세요")
+		return nil, errors.New("OpenRouter API key is not set. Please enter it in the settings")
 	}
 
-	// OpenRouter는 종횡비 파라미터가 없어 프롬프트로 유도합니다.
+	// OpenRouter has no aspect ratio parameter, so we steer it through the prompt.
 	fullPrompt := prompt + "\n\n" + aspectHint(aspectRatio)
 
 	parts := []orContentPart{{Type: "text", Text: fullPrompt}}
@@ -93,11 +93,11 @@ func (c *OpenRouter) GenerateImage(ctx context.Context, prompt string, refImages
 		Modalities: []string{"image", "text"},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("요청 직렬화 실패: %w", err)
+		return nil, fmt.Errorf("failed to serialize request: %w", err)
 	}
 
-	// 동시 배치 생성 시 일시적 429(rate limit)가 잦으므로 재시도를 넉넉히(6회) 두고
-	// 백오프 상한을 둔 지수 증가 + 지터로 부하를 분산한다.
+	// During concurrent batch generation, transient 429 (rate limit) responses are common, so we
+	// allow generous retries (6) and spread the load with capped exponential backoff plus jitter.
 	var lastErr error
 	backoff := 2 * time.Second
 	for attempt := 0; attempt < 6; attempt++ {
@@ -135,13 +135,13 @@ func (c *OpenRouter) doRequest(ctx context.Context, body []byte) (img []byte, re
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return nil, true, fmt.Errorf("네트워크 오류: %w", err)
+		return nil, true, fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 	if err != nil {
-		return nil, true, fmt.Errorf("응답 읽기 실패: %w", err)
+		return nil, true, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	var parsed orResponse
@@ -150,15 +150,15 @@ func (c *OpenRouter) doRequest(ctx context.Context, body []byte) (img []byte, re
 	if resp.StatusCode != http.StatusOK {
 		retryable = resp.StatusCode == 429 || resp.StatusCode >= 500
 		if parsed.Error != nil {
-			return nil, retryable, fmt.Errorf("OpenRouter 오류 (%d): %s", resp.StatusCode, parsed.Error.Message)
+			return nil, retryable, fmt.Errorf("OpenRouter error (%d): %s", resp.StatusCode, parsed.Error.Message)
 		}
-		return nil, retryable, fmt.Errorf("OpenRouter 오류 (HTTP %d)", resp.StatusCode)
+		return nil, retryable, fmt.Errorf("OpenRouter error (HTTP %d)", resp.StatusCode)
 	}
 	if parsed.Error != nil {
-		return nil, true, fmt.Errorf("OpenRouter 오류: %s", parsed.Error.Message)
+		return nil, true, fmt.Errorf("OpenRouter error: %s", parsed.Error.Message)
 	}
 	if len(parsed.Choices) == 0 || len(parsed.Choices[0].Message.Images) == 0 {
-		return nil, true, errors.New("응답에 이미지가 없습니다")
+		return nil, true, errors.New("the response contains no image")
 	}
 	data, err := decodeDataOrDownload(c.HTTP, parsed.Choices[0].Message.Images[0].ImageURL.URL)
 	if err != nil {
@@ -167,7 +167,7 @@ func (c *OpenRouter) doRequest(ctx context.Context, body []byte) (img []byte, re
 	return data, false, nil
 }
 
-// ValidateKey는 OpenRouter 키 유효성을 확인합니다.
+// ValidateKey checks whether the OpenRouter key is valid.
 func (c *OpenRouter) ValidateKey(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://openrouter.ai/api/v1/key", nil)
 	if err != nil {
@@ -176,14 +176,14 @@ func (c *OpenRouter) ValidateKey(ctx context.Context) error {
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return fmt.Errorf("네트워크 오류: %w", err)
+		return fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	}
 	if resp.StatusCode == 401 || resp.StatusCode == 403 {
-		return errors.New("API 키가 유효하지 않습니다")
+		return errors.New("the API key is invalid")
 	}
-	return fmt.Errorf("키 확인 실패 (HTTP %d)", resp.StatusCode)
+	return fmt.Errorf("key validation failed (HTTP %d)", resp.StatusCode)
 }
