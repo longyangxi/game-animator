@@ -178,6 +178,16 @@ const zh: Record<string, string> = {
   score_motion: "动态",
   score_contact: "接触",
   score_low_warn: "完成度得分较低。可以填写反馈或重新生成以改进。",
+
+  align_title: "对齐帧",
+  align_onion: "洋葱皮",
+  align_reset: "重置",
+  align_done: "完成",
+  align_cancel: "取消",
+  align_scale: "缩放",
+  align_hint: "拖动移动 · 滚轮缩放 · 方向键微调 1px",
+  align_open: "对齐这一帧",
+  align_adjusted: "已调整",
 };
 
 export default zh;

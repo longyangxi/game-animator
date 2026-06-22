@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { useI18n } from "../i18n";
 import { Button } from "./ui/button";
+import { FrameTransform } from "../types";
+import { applyTransform } from "../lib/frameTransform";
 
 interface IProps {
   frames: string[]; // List of dataURLs (reflects selection/ordering)
   fps: number;
   loop: boolean;
   cellSize: number;
+  transforms?: (FrameTransform | undefined)[];
 }
 
 // Canvas-based animation player

@@ -178,6 +178,16 @@ const es: Record<string, string> = {
   score_motion: "Movimiento",
   score_contact: "Contacto",
   score_low_warn: "La calidad es baja. Da retroalimentación o regenera para mejorar.",
+
+  align_title: "Alinear fotograma",
+  align_onion: "Papel cebolla",
+  align_reset: "Restablecer",
+  align_done: "Hecho",
+  align_cancel: "Cancelar",
+  align_scale: "Escala",
+  align_hint: "Arrastra para mover · rueda para escalar · flechas 1px",
+  align_open: "Alinear este fotograma",
+  align_adjusted: "Ajustado",
 };
 
 export default es;

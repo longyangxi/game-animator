@@ -36,3 +36,17 @@ describe("computeDrawRect (bottom-center anchor)", () => {
     expect(computeDrawRect(256, 256, { scale: 1, dx: 10, dy: -5 }, 256)).toEqual({ x: 10, y: -5, w: 256, h: 256 });
   });
 });
+
+import { applyTransform } from "./frameTransform";
+
+describe("applyTransform", () => {
+  it("disables smoothing and draws at the computed rect", () => {
+    const calls: any[] = [];
+    const ctx: any = { imageSmoothingEnabled: true, drawImage: (...a: any[]) => calls.push(a) };
+    const img: any = {};
+    applyTransform(ctx, img, 256, 256, { scale: 0.5, dx: 0, dy: 0 }, 256);
+    expect(ctx.imageSmoothingEnabled).toBe(false);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual([img, 64, 128, 128, 128]);
+  });
+});

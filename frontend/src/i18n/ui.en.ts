@@ -178,6 +178,16 @@ const en: Record<string, string> = {
   score_motion: "Motion",
   score_contact: "Contact",
   score_low_warn: "Quality score is low. Provide feedback or regenerate to improve.",
+
+  align_title: "Align frame",
+  align_onion: "Onion skin",
+  align_reset: "Reset",
+  align_done: "Done",
+  align_cancel: "Cancel",
+  align_scale: "Scale",
+  align_hint: "Drag to move · scroll to scale · arrow keys nudge 1px",
+  align_open: "Align this frame",
+  align_adjusted: "Adjusted",
 };
 
 export default en;

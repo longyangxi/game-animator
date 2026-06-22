@@ -178,6 +178,16 @@ const ko: Record<string, string> = {
   score_motion: "모션",
   score_contact: "컨택트",
   score_low_warn: "완성도 점수가 낮습니다. 피드백을 주거나 다시 생성해 개선할 수 있습니다.",
+
+  align_title: "프레임 정렬",
+  align_onion: "어니언 스킨",
+  align_reset: "초기화",
+  align_done: "완료",
+  align_cancel: "취소",
+  align_scale: "크기",
+  align_hint: "드래그로 이동 · 스크롤로 크기 · 방향키 1px 미세조정",
+  align_open: "이 프레임 정렬",
+  align_adjusted: "조정됨",
 };
 
 export default ko;

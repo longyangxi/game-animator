@@ -39,3 +39,43 @@ export function computeDrawRect(
   const y = cellSize - h + dy;
   return { x, y, w, h };
 }
+
+export function applyTransform(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  imgW: number,
+  imgH: number,
+  t: FrameTransform | undefined,
+  cellSize: number,
+): void {
+  const r = computeDrawRect(imgW, imgH, t, cellSize);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, r.x, r.y, r.w, r.h);
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// Renders the transformed frame onto a fresh cellSize canvas and returns a PNG dataURL.
+// Identity transform returns the source PNG unchanged (fast path).
+export async function bakeTransformed(
+  png: string,
+  t: FrameTransform | undefined,
+  cellSize: number,
+): Promise<string> {
+  if (isIdentity(t)) return png;
+  const img = await loadImage(png);
+  const canvas = document.createElement("canvas");
+  canvas.width = cellSize;
+  canvas.height = cellSize;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return png;
+  applyTransform(ctx, img, img.width, img.height, t, cellSize);
+  return canvas.toDataURL("image/png");
+}
