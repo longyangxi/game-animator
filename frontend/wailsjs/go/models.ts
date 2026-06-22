@@ -18,22 +18,6 @@ export namespace main {
 	        this.frames = source["frames"];
 	    }
 	}
-	export class RawStripItem {
-	    name: string;
-	    rawStrip: string;
-	    expected: number;
-
-	    static createFrom(source: any = {}) {
-	        return new RawStripItem(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.rawStrip = source["rawStrip"];
-	        this.expected = source["expected"];
-	    }
-	}
 	export class ExportArgs {
 	    character: string;
 	    cellSize: number;
@@ -165,6 +149,22 @@ export namespace main {
 	        this.keyPreview = source["keyPreview"];
 	        this.model = source["model"];
 	        this.models = source["models"];
+	    }
+	}
+	export class RawStripItem {
+	    name: string;
+	    rawStrip: string;
+	    expected: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RawStripItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.rawStrip = source["rawStrip"];
+	        this.expected = source["expected"];
 	    }
 	}
 	export class SettingsInfo {
