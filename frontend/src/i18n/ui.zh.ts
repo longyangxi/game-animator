@@ -7,6 +7,8 @@ const zh: Record<string, string> = {
   gallery_tip: "图库 (⌘G)",
   export: "导出",
   export_tip: "导出 (⌘E)",
+  export_strips: "导出长条",
+  export_strips_tip: "把切割前的原始长条导成 PNG 测试数据（不消耗 token）",
   settings: "设置",
   settings_tip: "设置 (⌘,)",
   provider_tip: "提供方: {provider} · {model} (⌘,)",

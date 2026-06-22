@@ -698,6 +698,81 @@ func (a *App) ExportProject(args ExportArgs) (string, error) {
 	return outDir, nil
 }
 
+// RawStripItem is one state's pre-slice transparent strip, captured straight
+// from the stage. It is the exact input to sprite.ExtractFrames, so exporting
+// these lets us iterate on the slicer/normalizer offline with zero generation cost.
+type RawStripItem struct {
+	Name     string `json:"name"`     // state name (export prefix)
+	RawStrip string `json:"rawStrip"` // dataURL of the cleaned, pre-slice strip
+	Expected int    `json:"expected"` // intended pose/frame count for this strip
+}
+
+// ExportRawStrips prompts for a directory and writes each state's pre-slice strip
+// as <name>-raw.png, plus a strips.json mapping file → expected pose count. These
+// are testdata for offline slicing tests; no API/token cost is incurred.
+func (a *App) ExportRawStrips(items []RawStripItem) (string, error) {
+	type manifestEntry struct {
+		File     string `json:"file"`
+		Name     string `json:"name"`
+		Expected int    `json:"expected"`
+	}
+	hasAny := false
+	for _, it := range items {
+		if strings.TrimSpace(it.RawStrip) != "" {
+			hasAny = true
+			break
+		}
+	}
+	if !hasAny {
+		return "", errors.New("there are no raw strips to export — generate some animations first")
+	}
+	var manifest []manifestEntry
+
+	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select folder for raw strips (slicing testdata)",
+	})
+	if err != nil {
+		return "", err
+	}
+	if dir == "" {
+		return "", nil // canceled
+	}
+	outDir := filepath.Join(dir, "raw-strips")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return "", err
+	}
+
+	for _, it := range items {
+		if strings.TrimSpace(it.RawStrip) == "" {
+			continue
+		}
+		raw, err := decodeDataURL(it.RawStrip)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode %s strip: %w", it.Name, err)
+		}
+		img, err := decodeImage(raw)
+		if err != nil {
+			return "", err
+		}
+		file := sanitizeName(it.Name) + "-raw.png"
+		if err := writePNG(filepath.Join(outDir, file), sprite.ToNRGBA(img)); err != nil {
+			return "", err
+		}
+		manifest = append(manifest, manifestEntry{File: file, Name: it.Name, Expected: it.Expected})
+	}
+	if len(manifest) == 0 {
+		return "", errors.New("there are no raw strips to export — generate some animations first")
+	}
+	manifestJSON, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "strips.json"), manifestJSON, 0o644); err != nil {
+		return "", err
+	}
+	return outDir, nil
+}
+
 // RevealInFinder opens the exported folder in the file explorer.
 func (a *App) RevealInFinder(path string) {
 	runtime.BrowserOpenURL(a.ctx, "file://"+path)

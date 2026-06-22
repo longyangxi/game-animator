@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Images, Package, Plus, Settings, X } from "lucide-react";
-import { CancelGeneration, ClearSession, ExportProject, GenerateState, GetSettings, ListDirections, ListPresets, LoadSession, MirrorFrames, RevealInFinder, SaveSession } from "../wailsjs/go/main/App";
+import { Images, Package, Plus, Scissors, Settings, X } from "lucide-react";
+import { CancelGeneration, ClearSession, ExportProject, ExportRawStrips, GenerateState, GetSettings, ListDirections, ListPresets, LoadSession, MirrorFrames, RevealInFinder, SaveSession } from "../wailsjs/go/main/App";
 import { EventsOn } from "../wailsjs/runtime/runtime";
 import CharacterPanel from "./components/CharacterPanel";
 import GalleryModal from "./components/GalleryModal";
@@ -521,8 +521,30 @@ export default function App() {
     }
   };
 
+  // Dev/testing: dump every stage state's pre-slice strip as PNG testdata for
+  // offline slicing tests. Costs no generation tokens — it reuses what's on stage.
+  const handleExportRawStrips = async () => {
+    const withStrip = statesRef.current.filter((s) => !!s.rawStrip);
+    if (withStrip.length === 0) {
+      toast("error", t("toast_no_export"));
+      return;
+    }
+    try {
+      const outDir: any = await ExportRawStrips(
+        withStrip.map((s) => ({ name: s.name, rawStrip: s.rawStrip as string, expected: s.frames })) as any,
+      );
+      if (outDir) {
+        toast("success", t("toast_export_done", { dir: outDir }));
+        RevealInFinder(outDir);
+      }
+    } catch (e) {
+      toast("error", String(e));
+    }
+  };
+
   const selectedState = states.find((s) => s.id === selectedId) ?? null;
   const exportable = states.some((s) => s.status === "done" && selectedFrames(s).length > 0);
+  const hasRawStrips = states.some((s) => !!s.rawStrip);
 
   return (
     <div className="app">
@@ -548,6 +570,11 @@ export default function App() {
           <Button variant="ghost" size="sm" onClick={() => setShowGallery(true)} title={t("gallery_tip")}>
             <Images size={13} /> {t("gallery")}
           </Button>
+          {hasRawStrips && (
+            <Button variant="ghost" size="sm" onClick={handleExportRawStrips} title={t("export_strips_tip")}>
+              <Scissors size={13} /> {t("export_strips")}
+            </Button>
+          )}
           <Button size="sm" disabled={!exportable} onClick={handleExport} title={t("export_tip")}>
             <Package size={13} /> {t("export")}
           </Button>

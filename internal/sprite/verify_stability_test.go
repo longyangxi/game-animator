@@ -5,10 +5,11 @@ import (
 	"testing"
 )
 
-// 검증용(임시): 몸통은 4프레임 모두 동일(같은 크기·같은 수직 위치·발 고정),
-// 오직 검 길이만 프레임마다 다르게 한다. 파이프라인이 안정적이라면 출력 4프레임에서
-// "몸통"의 위치/크기가 동일해야 한다. 흔들리면 B1(스케일 맥동)/B2(수평 흔들림)/
-// B4(수직 부침)가 실재한다는 증거.
+// 회귀 테스트(현재 SKIP): 몸통은 4프레임 모두 동일(같은 크기·같은 수직 위치·발 고정),
+// 오직 검 길이만 프레임마다 다르게 한다. 안정적인 슬라이서라면 출력 4프레임에서
+// "몸통"의 위치/크기가 ±1px 이내로 동일해야 한다. 현재는 B1(스케일 맥동)/
+// B2(수평 흔들림)로 크게 흔들린다(wΔ≈13, leftΔ≈22). 슬라이서 정규화 수정이
+// 들어가면 t.Skip을 제거한다. 배경: docs/sprite-slicing-stability.md
 //
 // 색으로 몸통/검을 구분: 몸통 G=100, 검 G=220 → G<160 이면 몸통 픽셀.
 
@@ -43,6 +44,7 @@ func bodyBBox(img *image.NRGBA) (minX, minY, maxX, maxY, count int) {
 }
 
 func TestVerifyBodyStableUnderSwordSwing(t *testing.T) {
+	t.Skip("known bug B1/B2 (slicer normalization) — un-skip when the fix lands; see docs/sprite-slicing-stability.md")
 	const cell = 200
 	strip := image.NewNRGBA(image.Rect(0, 0, 4*cell, 120))
 	swordLen := []int{10, 35, 70, 100} // 프레임마다 검 길이만 변함

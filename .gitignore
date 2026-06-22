@@ -9,6 +9,7 @@ frontend/package.json.md5
 
 # Validation harness build artifacts
 /ppvalidate
+/ppslice
 
 # da:image generation artifacts
 .da-image/

@@ -7,6 +7,8 @@ const es: Record<string, string> = {
   gallery_tip: "Galería (⌘G)",
   export: "Exportar",
   export_tip: "Exportar (⌘E)",
+  export_strips: "Tiras",
+  export_strips_tip: "Exportar las tiras crudas (antes del corte) como PNG de prueba (sin tokens)",
   settings: "Ajustes",
   settings_tip: "Ajustes (⌘,)",
   provider_tip: "Proveedor: {provider} · {model} (⌘,)",

@@ -7,6 +7,8 @@ const ko: Record<string, string> = {
   gallery_tip: "갤러리 (⌘G)",
   export: "내보내기",
   export_tip: "내보내기 (⌘E)",
+  export_strips: "스트립",
+  export_strips_tip: "분할 전 원본 스트립을 PNG 테스트데이터로 내보내기 (토큰 미사용)",
   settings: "설정",
   settings_tip: "설정 (⌘,)",
   provider_tip: "프로바이더: {provider} · {model} (⌘,)",

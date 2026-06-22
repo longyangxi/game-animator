@@ -18,6 +18,10 @@ export function ExportProject(arg1) {
   return window['go']['main']['App']['ExportProject'](arg1);
 }
 
+export function ExportRawStrips(arg1) {
+  return window['go']['main']['App']['ExportRawStrips'](arg1);
+}
+
 export function GenerateCharacter(arg1) {
   return window['go']['main']['App']['GenerateCharacter'](arg1);
 }
