@@ -14,7 +14,7 @@ interface IProps {
 }
 
 // Canvas-based animation player
-export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
+export default function AnimPlayer({ frames, fps, loop, cellSize, transforms }: IProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imagesRef = useRef<HTMLImageElement[]>([]);
@@ -23,6 +23,8 @@ export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
   const [playFps, setPlayFps] = useState(fps);
   const [frameIdx, setFrameIdx] = useState(0);
   const stateRef = useRef({ idx: 0, acc: 0, last: 0, playing: true, fps, loop });
+  const transformsRef = useRef(transforms);
+  transformsRef.current = transforms;
 
   // Reflect external fps changes
   useEffect(() => setPlayFps(fps), [fps]);
@@ -94,7 +96,8 @@ export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
         setFrameIdx(st.idx);
       }
 
-      const img = imgs[Math.min(st.idx, imgs.length - 1)];
+      const idx = Math.min(st.idx, imgs.length - 1);
+      const img = imgs[idx];
       if (!img || !img.naturalWidth) return;
       const w = img.naturalWidth;
       const h = img.naturalHeight;
@@ -105,7 +108,7 @@ export default function AnimPlayer({ frames, fps, loop, cellSize }: IProps) {
       const ctx = canvas.getContext("2d")!;
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0);
+      applyTransform(ctx, img, w, h, transformsRef.current?.[idx], w);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);

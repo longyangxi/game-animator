@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, LayoutGrid, Package, RefreshCw, Wand2 } from "lucide-react";
-import { DirectionInfo, StateDef, selectedFrames } from "../types";
+import { Check, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, LayoutGrid, Move, Package, RefreshCw, Wand2 } from "lucide-react";
+import { DirectionInfo, FrameTransform, StateDef, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
+import AlignModal from "./AlignModal";
+import { isIdentity } from "../lib/frameTransform";
 import { composeStateLabel, directionName } from "../i18n/catalog";
 import AnimPlayer from "./AnimPlayer";
 import DirectionGrid from "./DirectionGrid";
@@ -28,6 +30,7 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
   const { t, lang } = useI18n();
   const [tab, setTab] = useState<ViewTab>("play");
   const [feedback, setFeedback] = useState("");
+  const [alignIdx, setAlignIdx] = useState<number | null>(null);
 
   useEffect(() => setFeedback(state?.feedback ?? ""), [state?.id]);
 
