@@ -7,5 +7,5 @@ Mode: subagent-driven, NO commits (changes left in working tree per user).
 - Task 2: complete (applyTransform + bakeTransformed; 8/8 tests, tsc 0; review clean)
 - Task 3: complete (AlignModal + onion skin + i18n ×4; tsc 0; review clean. Minor: neighbors array recomputed per render → extra redraws, harmless)
 - Task 4: complete (AnimPlayer applies transforms; identity pixel-identical; tsc 0; review clean)
-- Task 5: in progress
-- Task 6: pending
+- Task 5: complete (PreviewPanel align button/badge/thumbnail/modal/player wiring; reorder chevrons preserved; tsc 0, build OK; review clean)
+- Task 6: in progress

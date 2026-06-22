@@ -11,6 +11,7 @@ import { Button } from "./components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./components/ui/dialog";
 import { CharacterDef, DirectionInfo, FALLBACK_PRESETS, FrameItem, PresetInfo, StateDef, selectedFrames, uid } from "./types";
 import { useI18n } from "./i18n";
+import { bakeTransformed } from "./lib/frameTransform";
 import { directionName } from "./i18n/catalog";
 import logoUrl from "./assets/logo.svg";
 
@@ -505,12 +506,16 @@ export default function App() {
       const outDir: any = await ExportProject({
         character: charRef.current.name.trim() || "character",
         cellSize: cellRef.current,
-        states: done.map((s) => ({
-          name: s.name,
-          fps: s.fps,
-          loop: s.loop,
-          frames: selectedFrames(s).map((f) => f.png),
-        })),
+        states: await Promise.all(
+          done.map(async (s) => ({
+            name: s.name,
+            fps: s.fps,
+            loop: s.loop,
+            frames: await Promise.all(
+              selectedFrames(s).map((f) => bakeTransformed(f.png, f.transform, cellRef.current)),
+            ),
+          })),
+        ),
       } as any);
       if (outDir) {
         toast("success", t("toast_export_done", { dir: outDir }));
