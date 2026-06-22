@@ -11,4 +11,5 @@ Mode: subagent-driven, NO commits (changes left in working tree per user).
 - Task 6: complete (export bake via bakeTransformed; tsc 0, build exit 0, 8/8 tests; review clean)
 - Final whole-feature review: CHANGES REQUESTED — Critical (AlignModal dx/dy cell-vs-view space) + Important (AtlasView ignores transforms) + minors.
 - Fix wave: complete (scaleTransform helper + tests; AlignModal view-space draw incl. onion ghosts; AtlasView applies transforms; arrow-key INPUT guard; doc comment). 10/10 tests, tsc 0, build 0. Re-verified by controller.
+- Manual-verify bug: align button click was dead — two overlapping full-width .fc-move spans; reorder span (rendered later) intercepted the click. Fix: merged into one centered cluster (align+reorder); fc-move button cursor → pointer. tsc 0, build 0.
 - FEATURE COMPLETE. All changes in working tree, uncommitted per user preference.

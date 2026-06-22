@@ -172,12 +172,10 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
                   <span className="fc-num">#{i + 1}</span>
                   {!isIdentity(f.transform) && <span className="fc-num" style={{ left: "auto", right: 4 }}>{t("align_adjusted")}</span>}
                   <span className="fc-check">{f.selected ? <Check size={11} /> : null}</span>
-                  <span className="fc-move" style={{ left: 4, right: "auto" }} onClick={(e) => e.stopPropagation()}>
+                  <span className="fc-move" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => setAlignIdx(i)} title={t("align_open")}>
                       <Move size={10} />
                     </button>
-                  </span>
-                  <span className="fc-move" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => moveFrame(i, -1)} title={t("move_earlier")}>
                       <ChevronLeft size={10} />
                     </button>
