@@ -67,6 +67,140 @@ func extractContent(strip *image.NRGBA, span colSpan, h int) frameContent {
 	return frameContent{img: dst, minX: minX, cx: cx, bottom: maxY}
 }
 
+// labelComponents는 4-연결 flood fill로 불투명 픽셀에 연결요소 id(1..n)를 부여합니다.
+// 투명/빈 픽셀은 0입니다. labels는 행 우선 1차원 배열(인덱스 y*w+x)입니다.
+func labelComponents(strip *image.NRGBA) (labels []int, n int) {
+	w, h := strip.Rect.Dx(), strip.Rect.Dy()
+	labels = make([]int, w*h)
+	op := func(x, y int) bool {
+		return x >= 0 && x < w && y >= 0 && y < h && strip.Pix[strip.PixOffset(x, y)+3] > alphaThreshold
+	}
+	stack := make([][2]int, 0, 1024)
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			if labels[y*w+x] != 0 || !op(x, y) {
+				continue
+			}
+			n++
+			stack = stack[:0]
+			stack = append(stack, [2]int{x, y})
+			labels[y*w+x] = n
+			for len(stack) > 0 {
+				p := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				for _, d := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+					nx, ny := p[0]+d[0], p[1]+d[1]
+					if op(nx, ny) && labels[ny*w+nx] == 0 {
+						labels[ny*w+nx] = n
+						stack = append(stack, [2]int{nx, ny})
+					}
+				}
+			}
+		}
+	}
+	return labels, n
+}
+
+// assignComponentOwners는 각 연결요소를 "그 요소의 알파 질량이 가장 많이 걸친 세그먼트"에
+// 귀속시킵니다. 결과 owner[compID] = 세그먼트 인덱스(어느 세그먼트에도 안 걸치면 -1).
+// 가로로 뻗은 검은 몸통이 있는 세그먼트가 통째로 소유하므로, 컷을 넘어가도 분리되지 않습니다.
+func assignComponentOwners(strip *image.NRGBA, labels []int, ncomp int, segs []colSpan) []int {
+	w, h := strip.Rect.Dx(), strip.Rect.Dy()
+	colSeg := make([]int, w)
+	for x := range colSeg {
+		colSeg[x] = -1
+	}
+	for si, s := range segs {
+		for x := s.start; x < s.end && x < w; x++ {
+			if x >= 0 {
+				colSeg[x] = si
+			}
+		}
+	}
+	mass := make([][]float64, ncomp+1)
+	for i := range mass {
+		mass[i] = make([]float64, len(segs))
+	}
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			l := labels[y*w+x]
+			if l == 0 {
+				continue
+			}
+			if si := colSeg[x]; si >= 0 {
+				mass[l][si] += float64(strip.Pix[strip.PixOffset(x, y)+3])
+			}
+		}
+	}
+	owner := make([]int, ncomp+1)
+	for c := 1; c <= ncomp; c++ {
+		// best starts at 0: a component with no mass in ANY segment (e.g. distant
+		// residue outside every pose's columns) stays unowned(-1) and is dropped,
+		// rather than being captured by segment 0.
+		best, bi := 0.0, -1
+		for si := range segs {
+			if mass[c][si] > best {
+				best, bi = mass[c][si], si
+			}
+		}
+		owner[c] = bi
+	}
+	return owner
+}
+
+// extractOwnedContent는 owner[label]==segIdx 인 픽셀만 모아 bbox로 잘라냅니다.
+// 컬럼 범위가 아니라 소유권으로 모으므로, 자기 검은 경계를 넘어도 따라오고 남의 검끝은
+// 들어오지 않습니다. 소유 픽셀이 없으면 빈 frameContent(img=nil)를 돌려 폴백을 유도합니다.
+func extractOwnedContent(strip *image.NRGBA, labels []int, owner []int, segIdx int) frameContent {
+	w, h := strip.Rect.Dx(), strip.Rect.Dy()
+	minX, minY, maxX, maxY := w, h, -1, -1
+	var sumWX, sumW float64
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			l := labels[y*w+x]
+			if l == 0 || owner[l] != segIdx {
+				continue
+			}
+			a := strip.Pix[strip.PixOffset(x, y)+3]
+			if x < minX {
+				minX = x
+			}
+			if x > maxX {
+				maxX = x
+			}
+			if y < minY {
+				minY = y
+			}
+			if y > maxY {
+				maxY = y
+			}
+			sumWX += float64(x) * float64(a)
+			sumW += float64(a)
+		}
+	}
+	if maxX < minX || maxY < minY {
+		return frameContent{}
+	}
+	gw, gh := maxX-minX+1, maxY-minY+1
+	dst := image.NewNRGBA(image.Rect(0, 0, gw, gh))
+	for y := minY; y <= maxY; y++ {
+		for x := minX; x <= maxX; x++ {
+			l := labels[y*w+x]
+			if l == 0 || owner[l] != segIdx {
+				continue
+			}
+			si := strip.PixOffset(x, y)
+			di := dst.PixOffset(x-minX, y-minY)
+			copy(dst.Pix[di:di+4], strip.Pix[si:si+4])
+		}
+	}
+	cx := float64(minX+maxX+1) / 2
+	if sumW > 0 {
+		cx = sumWX / sumW
+	}
+	return frameContent{img: dst, minX: minX, cx: cx, bottom: maxY}
+}
+
 // ExtractFrames detects poses in a transparent-background strip via projection segmentation and
 // produces cell-sized frames. It applies a common scale to all frames, aligns them horizontally
 // by center of mass, and preserves vertical offsets (jump arcs, etc.) against a common baseline.
@@ -79,11 +213,32 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 	}
 	h := strip.Rect.Dy()
 
+	// 컬럼 컷이 검/꼬리처럼 가로로 뻗은 연결요소를 관통하면, 잘린 끝이 옆 프레임으로
+	// 새어든다(A1 bleed). 이를 막기 위해 연결요소(blob)를 "질량이 가장 많이 걸친 세그먼트"가
+	// 통째로 소유하게 하고, 각 프레임은 자기가 소유한 blob 픽셀만 가져온다(컬럼 경계를 넘어도
+	// 자기 검은 따라오고, 남의 검끝은 들어오지 않는다). 어떤 세그먼트가 소유 blob이 0이 되는
+	// 진짜 겹침(A3)에서는 옛 컬럼-클립 방식으로 안전하게 되돌린다.
+	labels, ncomp := labelComponents(strip)
+	owner := assignComponentOwners(strip, labels, ncomp, segs)
 	var fcs []frameContent
-	for _, s := range segs {
-		fc := extractContent(strip, s, h)
-		if fc.img != nil {
-			fcs = append(fcs, fc)
+	owned := make([]frameContent, len(segs))
+	useOwnership := true
+	for i := range segs {
+		fc := extractOwnedContent(strip, labels, owner, i)
+		if fc.img == nil {
+			useOwnership = false
+			break
+		}
+		owned[i] = fc
+	}
+	if useOwnership {
+		fcs = owned
+	} else {
+		for _, s := range segs {
+			fc := extractContent(strip, s, h)
+			if fc.img != nil {
+				fcs = append(fcs, fc)
+			}
 		}
 	}
 	if len(fcs) == 0 {
