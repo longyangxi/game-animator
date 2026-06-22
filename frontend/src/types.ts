@@ -1,9 +1,16 @@
 // Frontend domain type definitions
 
+export interface FrameTransform {
+  scale: number; // relative to the frame content; clamped to [0.5, 1.5]
+  dx: number;    // cell-pixel horizontal offset
+  dy: number;    // cell-pixel vertical offset
+}
+
 export interface FrameItem {
   id: string;
-  png: string; // dataURL
+  png: string; // dataURL — source frame, never mutated
   selected: boolean;
+  transform?: FrameTransform; // undefined == identity
 }
 
 export interface FrameScores {
