@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, LayoutGrid, Move, Package, RefreshCw, Wand2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, LayoutGrid, Pencil, Package, RefreshCw, Wand2 } from "lucide-react";
 import { DirectionInfo, FrameTransform, StateDef, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
 import AlignModal from "./AlignModal";
@@ -174,7 +174,7 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
                   <span className="fc-check">{f.selected ? <Check size={11} /> : null}</span>
                   <span className="fc-move" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => setAlignIdx(i)} title={t("align_open")}>
-                      <Move size={10} />
+                      <Pencil size={10} />
                     </button>
                     <button onClick={() => moveFrame(i, -1)} title={t("move_earlier")}>
                       <ChevronLeft size={10} />
