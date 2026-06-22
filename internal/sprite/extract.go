@@ -274,13 +274,11 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 	}
 
 	for _, g := range fcs {
-		// scale was computed against the body extent, so adjust the remaining empty space in the
-		// bounding box to fit the available space.
-		boxScale := minf(scale, minf(float64(availW)/float64(g.img.Rect.Dx()), float64(availH)/float64(g.img.Rect.Dy())))
-		if boxScale > 1 {
-			boxScale = 1
-		}
-		// for vertical alignment, use the content's bottom rather than the actual feet/lower-body (bottom)
+		// B1(스케일 맥동) 방지: 모든 프레임이 동일한 공유 scale을 쓴다. 예전처럼 프레임별
+		// 전체 bbox(검 포함)로 다시 clamp하지 않는다 — 검이 길어진 프레임만 작게 그려져
+		// 몸통이 프레임마다 커졌다 작아졌다 하던 문제가 사라진다. 셀을 넘치는 검은 줄이지
+		// 않고 가장자리에서 잘리게 둔다(아래 Copy가 자동 클립).
+		boxScale := scale
 		sw := int(float64(g.img.Rect.Dx())*boxScale + 0.5)
 		sh := int(float64(g.img.Rect.Dy())*boxScale + 0.5)
 		if sw < 1 {
@@ -298,15 +296,12 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 		contentBaseline := int(float64(baseline-g.bottom)*boxScale + 0.5)
 
 		cell := image.NewNRGBA(image.Rect(0, 0, cellW, cellH))
-		// place horizontally so the center of mass lands at the cell center (even if limbs extend to
-		// one side, the larger-area torso dominates, so there is little wobble between frames).
-		left := int(float64(cellW)/2 - (g.cx-float64(g.minX))*boxScale + 0.5)
-		if left < 0 {
-			left = 0
-		}
-		if left+sw > cellW {
-			left = cellW - sw
-		}
+		// B2(수평 흔들림) 방지: 검/팔처럼 가늘게 뻗은 부분에 끌리는 알파 평균(cx) 대신,
+		// "굵은 컬럼(몸통)"의 중점을 수평 앵커로 쓴다. 검이 길어져도 몸통 앵커는 그대로라
+		// 프레임 간 좌우 밀림이 없다. 폭 기반 clamp는 검에 다시 의존성을 만들므로 제거하고,
+		// 넘치는 검은 셀 가장자리에서 잘리게 둔다.
+		anchorX := bodyAnchorColumn(g.img)
+		left := int(float64(cellW)/2 - anchorX*boxScale + 0.5)
 		top := cellH - margin - contentBaseline - sh
 		if top < 0 {
 			top = 0
@@ -321,6 +316,46 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 			fmt.Sprintf("Detected %[2]d poses instead of the expected %[1]d. Poses may have overlapped or gone missing; regeneration is recommended.", expected, natural))
 	}
 	return res
+}
+
+// bodyAnchorColumn returns a horizontal anchor (column offset within img) robust to thin
+// extended limbs/weapons: the midpoint of the "thick" columns whose alpha mass is at least
+// half the densest column. A long thin sword has low per-column mass and is excluded, so the
+// torso anchor stays put as the sword swings.
+func bodyAnchorColumn(img *image.NRGBA) float64 {
+	w, h := img.Rect.Dx(), img.Rect.Dy()
+	if w == 0 {
+		return 0
+	}
+	colMass := make([]float64, w)
+	maxMass := 0.0
+	for x := 0; x < w; x++ {
+		var m float64
+		for y := 0; y < h; y++ {
+			m += float64(img.Pix[img.PixOffset(x, y)+3])
+		}
+		colMass[x] = m
+		if m > maxMass {
+			maxMass = m
+		}
+	}
+	if maxMass == 0 {
+		return float64(w) / 2
+	}
+	thr := 0.5 * maxMass
+	first, last := -1, -1
+	for x := 0; x < w; x++ {
+		if colMass[x] >= thr {
+			if first < 0 {
+				first = x
+			}
+			last = x
+		}
+	}
+	if first < 0 {
+		return float64(w) / 2
+	}
+	return float64(first+last) / 2
 }
 
 // bodyExtent returns the minimum size containing 80% of the alpha mass as the "real body" extent.
