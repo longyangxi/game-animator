@@ -73,55 +73,70 @@ func (c *OpenAI) GenerateImage(ctx context.Context, prompt string, refImages [][
 	}
 
 	fullPrompt := prompt + "\n\n" + aspectHint(aspectRatio)
-	size := openAISizeFor(aspectRatio)
 
-	var body []byte
-	var contentType string
-	var endpoint string
-	var err error
-	if len(refImages) == 0 {
-		endpoint = c.generationEndpoint
-		if endpoint == "" {
-			endpoint = openAIImageGenerationEndpoint
-		}
-		body, err = json.Marshal(openAIImageRequest{
-			Model:        c.Model,
-			Prompt:       fullPrompt,
-			N:            1,
-			Size:         size,
-			Quality:      "medium",
-			OutputFormat: "png",
-		})
-		contentType = "application/json"
-	} else {
+	endpoint := c.generationEndpoint
+	if len(refImages) > 0 {
 		endpoint = c.editEndpoint
 		if endpoint == "" {
 			endpoint = openAIImageEditEndpoint
 		}
-		body, contentType, err = c.buildEditBody(fullPrompt, refImages, size)
+	} else if endpoint == "" {
+		endpoint = openAIImageGenerationEndpoint
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize request: %w", err)
+
+	buildBody := func(size string) ([]byte, string, error) {
+		if len(refImages) == 0 {
+			b, err := json.Marshal(openAIImageRequest{
+				Model:        c.Model,
+				Prompt:       fullPrompt,
+				N:            1,
+				Size:         size,
+				Quality:      "medium",
+				OutputFormat: "png",
+			})
+			return b, "application/json", err
+		}
+		return c.buildEditBody(fullPrompt, refImages, size)
+	}
+
+	// Try the frame-scaled size first; if the model rejects it (a non-retryable error, usually a
+	// size the API won't accept), fall back once to the proven-good 1792x768 instead of failing.
+	const safeSize = "1792x768"
+	sizes := []string{openAISizeFor(aspectRatio)}
+	if sizes[0] != safeSize {
+		sizes = append(sizes, safeSize)
 	}
 
 	var lastErr error
-	backoff := 2 * time.Second
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(backoff):
+	for si, size := range sizes {
+		body, contentType, err := buildBody(size)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize request: %w", err)
+		}
+		backoff := 2 * time.Second
+		nonRetryable := false
+		for attempt := 0; attempt < 3; attempt++ {
+			if attempt > 0 {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(backoff):
+				}
+				backoff *= 2
 			}
-			backoff *= 2
+			img, retryable, err := c.doImageRequest(ctx, endpoint, contentType, body)
+			if err == nil {
+				return img, nil
+			}
+			lastErr = err
+			if !retryable {
+				nonRetryable = true
+				break
+			}
 		}
-		img, retryable, err := c.doImageRequest(ctx, endpoint, contentType, body)
-		if err == nil {
-			return img, nil
-		}
-		lastErr = err
-		if !retryable {
-			return nil, err
+		// On a non-retryable failure, try the next (fallback) size if there is one.
+		if nonRetryable && si == len(sizes)-1 {
+			return nil, lastErr
 		}
 	}
 	return nil, lastErr
@@ -255,14 +270,31 @@ func openAISizeFor(aspectRatio string) string {
 	if w == h {
 		return "1024x1024"
 	}
-	const maxEdge = 1792
+	// Scale the long edge with the aspect ratio so a wider multi-pose strip gets proportionally
+	// more total width (each pose keeps a usable pixel budget) instead of being squeezed into a
+	// fixed long edge. The short edge stays ~rowHeight, so cost scales with pose count rather than
+	// a flat maximum. Floored at 1792 (square-ish/small strips are unchanged from before) and
+	// capped at 4096 (gpt-image-2's maximum).
+	const rowHeight = 768.0
+	const minEdge, maxEdge = 1792, 4096
+	ratio := float64(w) / float64(h)
+	if ratio < 1 {
+		ratio = 1 / ratio
+	}
+	longEdge := int(rowHeight*ratio + 0.5)
+	if longEdge < minEdge {
+		longEdge = minEdge
+	}
+	if longEdge > maxEdge {
+		longEdge = maxEdge
+	}
 	var pw, ph int
 	if w > h {
-		pw = maxEdge
-		ph = int(float64(maxEdge) * float64(h) / float64(w))
+		pw = longEdge
+		ph = int(float64(longEdge) * float64(h) / float64(w))
 	} else {
-		ph = maxEdge
-		pw = int(float64(maxEdge) * float64(w) / float64(h))
+		ph = longEdge
+		pw = int(float64(longEdge) * float64(w) / float64(h))
 	}
 	round16 := func(v int) int {
 		if v < 640 {
