@@ -51,6 +51,7 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
   }
 
   const frames = selectedFrames(state).map((f) => f.png);
+  const frameTransforms = selectedFrames(state).map((f) => f.transform);
 
   const toggleFrame = (fid: string) => {
     onUpdateState(state.id, {
@@ -128,7 +129,7 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
         )}
 
         {state.status === "done" && tab === "play" && frames.length > 0 && (
-          <AnimPlayer frames={frames} fps={state.fps} loop={state.loop} cellSize={cellSize} />
+          <AnimPlayer frames={frames} fps={state.fps} loop={state.loop} cellSize={cellSize} transforms={frameTransforms} />
         )}
 
         {tab === "play" && state.dirBase && (
@@ -155,9 +156,27 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
                   onClick={() => toggleFrame(f.id)}
                   title={f.selected ? t("click_exclude") : t("click_include")}
                 >
-                  <img src={f.png} className="pixelated" alt={`frame ${i + 1}`} />
+                  <img
+                    src={f.png}
+                    className="pixelated"
+                    alt={`frame ${i + 1}`}
+                    style={
+                      isIdentity(f.transform)
+                        ? undefined
+                        : {
+                            transformOrigin: "bottom center",
+                            transform: `translate(${(f.transform!.dx / cellSize) * 100}%, ${(f.transform!.dy / cellSize) * 100}%) scale(${f.transform!.scale})`,
+                          }
+                    }
+                  />
                   <span className="fc-num">#{i + 1}</span>
+                  {!isIdentity(f.transform) && <span className="fc-num" style={{ left: "auto", right: 4 }}>{t("align_adjusted")}</span>}
                   <span className="fc-check">{f.selected ? <Check size={11} /> : null}</span>
+                  <span className="fc-move" style={{ left: 4, right: "auto" }} onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => setAlignIdx(i)} title={t("align_open")}>
+                      <Move size={10} />
+                    </button>
+                  </span>
                   <span className="fc-move" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => moveFrame(i, -1)} title={t("move_earlier")}>
                       <ChevronLeft size={10} />
@@ -206,6 +225,21 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
               <div className="raw-strip checker">
                 <img src={state.rawStrip} className="pixelated" alt={t("raw_strip_alt")} />
               </div>
+            )}
+
+            {alignIdx !== null && (
+              <AlignModal
+                items={state.items}
+                index={alignIdx}
+                cellSize={cellSize}
+                onClose={() => setAlignIdx(null)}
+                onSave={(tr: FrameTransform) => {
+                  onUpdateState(state.id, {
+                    items: state.items.map((f, i) => (i === alignIdx ? { ...f, transform: tr } : f)),
+                  });
+                  setAlignIdx(null);
+                }}
+              />
             )}
           </>
         )}
