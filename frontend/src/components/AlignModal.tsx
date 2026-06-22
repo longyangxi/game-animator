@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { useI18n } from "../i18n";
 import { FrameItem, FrameTransform } from "../types";
-import { identityTransform, isIdentity, clampScale, applyTransform } from "../lib/frameTransform";
+import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform } from "../lib/frameTransform";
 
 interface IProps {
   items: FrameItem[];
@@ -44,27 +44,27 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const scale = VIEW / cellSize;
+    const k = VIEW / cellSize;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, VIEW, VIEW);
     // cell border + baseline guide
     ctx.strokeStyle = "rgba(120,120,255,0.5)";
     ctx.strokeRect(0.5, 0.5, VIEW - 1, VIEW - 1);
-    // onion ghosts (neighbors at identity)
+    // onion ghosts (neighbors with their own stored transform)
     if (onion) {
       ctx.globalAlpha = 0.25;
       neighbors.forEach((i) => {
         const im = imgsRef.current[i];
-        if (im && im.complete) ctx.drawImage(im, 0, 0, VIEW, VIEW);
+        if (im && im.complete) applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(items[i].transform, k), VIEW);
       });
       ctx.globalAlpha = 1;
     }
     // current frame with the draft transform (scaled into VIEW space)
     const im = imgsRef.current[index];
     if (im && im.complete) {
-      applyTransform(ctx, im, im.width * scale, im.height * scale, draftRef.current, VIEW);
+      applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(draftRef.current, k), VIEW);
     }
-  }, [cellSize, index, neighbors, onion]);
+  }, [cellSize, index, items, neighbors, onion]);
 
   useEffect(draw, [draw, draft]);
 
@@ -92,6 +92,7 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
   // arrow-key 1px nudge
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       const map: Record<string, [number, number]> = {
         ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
       };

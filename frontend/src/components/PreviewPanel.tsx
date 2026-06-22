@@ -3,7 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, Layout
 import { DirectionInfo, FrameTransform, StateDef, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
 import AlignModal from "./AlignModal";
-import { isIdentity } from "../lib/frameTransform";
+import { applyTransform, isIdentity } from "../lib/frameTransform";
 import { composeStateLabel, directionName } from "../i18n/catalog";
 import AnimPlayer from "./AnimPlayer";
 import DirectionGrid from "./DirectionGrid";
@@ -305,10 +305,10 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
           const imgs = await Promise.all(
             selectedFrames(s).map(
               (f) =>
-                new Promise<HTMLImageElement>((resolve) => {
+                new Promise<{ img: HTMLImageElement; transform: FrameTransform | undefined }>((resolve) => {
                   const img = new Image();
-                  img.onload = () => resolve(img);
-                  img.onerror = () => resolve(img);
+                  img.onload = () => resolve({ img, transform: f.transform });
+                  img.onerror = () => resolve({ img, transform: f.transform });
                   img.src = f.png;
                 })
             )
@@ -328,8 +328,12 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, w, h);
       rows.forEach((row, ri) => {
-        row.imgs.forEach((img, ci) => {
-          if (img.naturalWidth) ctx.drawImage(img, ci * cellSize, ri * cellSize, cellSize, cellSize);
+        row.imgs.forEach((cell, ci) => {
+          if (!cell.img.naturalWidth) return;
+          ctx.save();
+          ctx.translate(ci * cellSize, ri * cellSize);
+          applyTransform(ctx, cell.img, cell.img.width, cell.img.height, cell.transform, cellSize);
+          ctx.restore();
         });
       });
     })();

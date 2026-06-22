@@ -37,7 +37,16 @@ describe("computeDrawRect (bottom-center anchor)", () => {
   });
 });
 
-import { applyTransform } from "./frameTransform";
+import { applyTransform, scaleTransform } from "./frameTransform";
+
+describe("scaleTransform", () => {
+  it("scales dx/dy by k, leaves scale", () => {
+    expect(scaleTransform({ scale: 0.5, dx: 10, dy: -4 }, 1.5)).toEqual({ scale: 0.5, dx: 15, dy: -6 });
+  });
+  it("passes undefined through", () => {
+    expect(scaleTransform(undefined, 2)).toBeUndefined();
+  });
+});
 
 describe("applyTransform", () => {
   it("disables smoothing and draws at the computed rect", () => {

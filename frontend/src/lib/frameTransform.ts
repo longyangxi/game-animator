@@ -53,6 +53,12 @@ export function applyTransform(
   ctx.drawImage(img, r.x, r.y, r.w, r.h);
 }
 
+// Convert a transform whose dx/dy are in cell pixels into one for a canvas scaled by k (view px / cell px).
+export function scaleTransform(t: FrameTransform | undefined, k: number): FrameTransform | undefined {
+  if (!t) return undefined;
+  return { scale: t.scale, dx: t.dx * k, dy: t.dy * k };
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -70,6 +76,7 @@ export async function bakeTransformed(
   cellSize: number,
 ): Promise<string> {
   if (isIdentity(t)) return png;
+  // assumes the source PNG is cell-sized (frames are generated at cell resolution)
   const img = await loadImage(png);
   const canvas = document.createElement("canvas");
   canvas.width = cellSize;
