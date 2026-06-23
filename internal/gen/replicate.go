@@ -36,22 +36,6 @@ func NewReplicate(apiKey, model string) *Replicate {
 
 const replicateAPIBase = "https://api.replicate.com/v1"
 
-// replModelCfg captures the input-schema differences between Replicate models.
-type replModelCfg struct {
-	geminiStyle bool // true: prompt + image_input + aspect_ratio; false: prompt + width/height/steps/guidance
-	steps       int
-	guidance    float64
-}
-
-func replModelCfgFor(model string) replModelCfg {
-	switch model {
-	case "prunaai/z-image-turbo":
-		return replModelCfg{geminiStyle: false, steps: 8, guidance: 0}
-	default: // google/nano-banana-2, google/nano-banana, and other Gemini-style image models
-		return replModelCfg{geminiStyle: true}
-	}
-}
-
 type replPrediction struct {
 	ID     string          `json:"id"`
 	Status string          `json:"status"`
@@ -70,33 +54,23 @@ func (c *Replicate) GenerateImage(ctx context.Context, prompt string, refImages 
 	if c.APIKey == "" {
 		return nil, errors.New("Replicate API token is not set. Please enter it in the settings")
 	}
-	cfg := replModelCfgFor(c.Model)
+	// Only Gemini-family image models are offered for Replicate (see provider.go): they accept a
+	// fixed aspect set and reference images, which is what this strip/grid workflow needs.
 	input := map[string]any{
 		// Also pass a prompt hint in case the aspect parameter is ignored/snapped.
 		"prompt":        prompt + "\n\n" + aspectHint(aspectRatio),
 		"output_format": "png",
 	}
-
-	if cfg.geminiStyle {
-		// Gemini-family models accept a fixed aspect set; reuse the same snapping as the Gemini provider.
-		if ar := geminiSnapAspect(aspectRatio); ar != "" {
-			input["aspect_ratio"] = ar
+	if ar := geminiSnapAspect(aspectRatio); ar != "" {
+		input["aspect_ratio"] = ar
+	}
+	// Reference images drive character identity across the strip.
+	if len(refImages) > 0 {
+		uris := make([]string, 0, len(refImages))
+		for _, img := range refImages {
+			uris = append(uris, "data:image/png;base64,"+base64.StdEncoding.EncodeToString(img))
 		}
-		// Reference images drive character identity across the strip.
-		if len(refImages) > 0 {
-			uris := make([]string, 0, len(refImages))
-			for _, img := range refImages {
-				uris = append(uris, "data:image/png;base64,"+base64.StdEncoding.EncodeToString(img))
-			}
-			input["image_input"] = uris
-		}
-	} else {
-		// SDXL-style: explicit dimensions + inference params (reference images are not used here).
-		w, h := replSizeFor(aspectRatio)
-		input["width"] = w
-		input["height"] = h
-		input["num_inference_steps"] = cfg.steps
-		input["guidance_scale"] = cfg.guidance
+		input["image_input"] = uris
 	}
 
 	body, err := json.Marshal(map[string]any{"input": input})
@@ -248,28 +222,6 @@ func firstReplOutput(raw json.RawMessage) string {
 		return arr[0]
 	}
 	return ""
-}
-
-// replSizeFor maps the requested aspect to safe SDXL-style dimensions (long side ~1280, /64 grid).
-func replSizeFor(aspectRatio string) (int, int) {
-	w, h := parseAspect(geminiSnapAspect(aspectRatio))
-	if w <= 0 || h <= 0 {
-		return 1024, 1024
-	}
-	const long = 1280
-	snap64 := func(v int) int {
-		if v < 512 {
-			v = 512
-		}
-		if v > 1536 {
-			v = 1536
-		}
-		return (v / 64) * 64
-	}
-	if w >= h {
-		return snap64(long), snap64(long * h / w)
-	}
-	return snap64(long * w / h), snap64(long)
 }
 
 func firstNonEmptyStr(vals ...string) string {

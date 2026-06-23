@@ -120,7 +120,7 @@ func BuildCharacterPrompt(description, style string) string {
 func BuildStripPrompt(description, style string, spec StateSpec, feedback string) string {
 	var b strings.Builder
 	n := spec.Frames
-	rows, cols := gridForFrames(n)
+	rows, cols := GridForFrames(n)
 
 	if rows > 1 {
 		fmt.Fprintf(&b, "Draw exactly %d game-sprite poses of one character for the \"%s\" animation, laid out in a grid of %d columns by %d rows, read left to right then top to bottom (pose 1 top-left, the next finishing the top row, then continuing on the second row). This is raw sprite art, not a photo or a film — draw only the character poses on a flat background.\n\n", n, spec.Name, cols, rows)
@@ -193,11 +193,11 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback string
 	return b.String()
 }
 
-// gridForFrames returns the (rows, cols) generation/slicing layout for a pose count. Single row for
+// GridForFrames returns the (rows, cols) generation/slicing layout for a pose count. Single row for
 // ≤3 frames; a 2-row grid for 4+ so each pose gets a roomy near-square cell (big weapon swings cross
 // less) while staying one image (consistent identity, scale, baseline). cols = ceil(n/rows); the last
 // row holds the remainder (5→2×3 with one empty cell, etc.).
-func gridForFrames(n int) (rows, cols int) {
+func GridForFrames(n int) (rows, cols int) {
 	if n <= 3 {
 		if n < 1 {
 			n = 1
@@ -234,7 +234,7 @@ func AspectForFrames(frames int) string {
 	if frames <= 1 {
 		return "1:1"
 	}
-	if rows, cols := gridForFrames(frames); rows > 1 {
+	if rows, cols := GridForFrames(frames); rows > 1 {
 		g := gcd(cols, rows)
 		return fmt.Sprintf("%d:%d", cols/g, rows/g) // grid → near-square cells (reduced ratio)
 	}

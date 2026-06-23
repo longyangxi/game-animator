@@ -306,7 +306,7 @@ func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) Extra
 	var fcs []frameContent
 	var natural int
 	gridHandled := false
-	if rows, cols := gridForFrames(expected); rows > 1 {
+	if rows, cols := GridForFrames(expected); rows > 1 {
 		if bands := splitRows(strip, rows); len(bands) == rows {
 			gridHandled = true
 			for r, band := range bands {

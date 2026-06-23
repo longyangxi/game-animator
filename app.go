@@ -486,9 +486,15 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 		// correction feedback for the next attempt (keep the user's feedback + add measurement-based correction instructions)
 		var fixes []string
 		if cand.Found != expected {
+			var layout string
+			if rows, cols := sprite.GridForFrames(expected); rows > 1 {
+				layout = fmt.Sprintf("a clean %d-column by %d-row grid, read left to right then top to bottom, with one clearly separated pose per cell and a wide magenta gutter between every row AND column so nothing touches or bridges", cols, rows)
+			} else {
+				layout = fmt.Sprintf("one horizontal row of %d equally sized poses, one clearly separated pose per column, each ringed by a clean magenta gap so none touch or overlap", expected)
+			}
 			fixes = append(fixes, fmt.Sprintf(
-				"IMPORTANT CORRECTION: the last attempt read as %d poses but EXACTLY %d are required. Redraw as one horizontal row of %d equally sized poses, one clearly separated pose per column, each ringed by a clean magenta gap so none touch or overlap. Do not draw any frame, border, or film strip.",
-				cand.Found, expected, expected))
+				"IMPORTANT CORRECTION: the last attempt read as %d poses but EXACTLY %d are required. Redraw as %s. Do not draw any frame, border, or film strip.",
+				cand.Found, expected, layout))
 		}
 		if len(insp.RetryHints) > 0 {
 			fixes = append(fixes, "QUALITY CORRECTIONS detected by automated inspection (fix all of these):")

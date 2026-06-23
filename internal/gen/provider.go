@@ -54,8 +54,10 @@ var modelCatalog = map[string][]string{
 	},
 	ProviderReplicate: {
 		"google/nano-banana-2", // Gemini image, best identity for the strip workflow (default)
-		"google/nano-banana",   // Gemini 2.5 Flash image — cheaper, for testing
-		"prunaai/z-image-turbo", // ultra-cheap SDXL txt2img — pipeline checks only (no identity/wide strip)
+		"google/nano-banana",   // Gemini 2.5 Flash image — cheaper, the "for testing" option
+		// Note: SDXL-style models (e.g. prunaai/z-image-turbo) are intentionally NOT offered — they
+		// cannot produce the magenta-keyed, cleanly-separated multi-pose sprite sheets this pipeline
+		// needs (extraction finds 0 poses), so only Gemini-family image models are listed here.
 	},
 }
 
