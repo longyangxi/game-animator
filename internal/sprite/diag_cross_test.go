@@ -81,4 +81,10 @@ func TestDiagCrossStrip(t *testing.T) {
 	for _, w := range res.Warnings {
 		t.Logf("  warning: %s", w)
 	}
+	_ = os.MkdirAll("/tmp/cross-frames", 0o755)
+	for i, fr := range res.Frames {
+		out, _ := os.Create("/tmp/cross-frames/frame-" + string(rune('0'+i)) + ".png")
+		_ = png.Encode(out, fr)
+		out.Close()
+	}
 }
