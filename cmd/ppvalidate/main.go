@@ -85,7 +85,7 @@ func genStrip(ctx context.Context, p gen.Provider, desc, styleKey, style string,
 	best.Name, best.Expected = spec.Name, expected
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		prompt := sprite.BuildStripPrompt(desc, style, spec, feedback)
+		prompt := sprite.BuildStripPrompt(desc, style, spec, feedback, "")
 		if len(refs) > 1 {
 			prompt += "\nMotion reference: the second attached image is the FRONT-view animation strip of this same character performing this exact action. Reproduce the same motion timing and pose phases frame by frame, but viewed from the required facing direction above.\n"
 		}
@@ -272,7 +272,7 @@ func run(percat int, list, dirset, outDir, desc, styleKey string, timeout time.D
 	// 1) Generate the base character (also validates the key)
 	t0 := time.Now()
 	fmt.Print("generating base character... ")
-	craw, err := p.GenerateImage(ctx, sprite.BuildCharacterPrompt(desc, style), nil, "1:1")
+	craw, err := p.GenerateImage(ctx, sprite.BuildCharacterPrompt(desc, style, ""), nil, "1:1")
 	if err != nil {
 		fmt.Printf("failed: %v\n", err)
 		os.Exit(1)

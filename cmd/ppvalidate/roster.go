@@ -67,7 +67,7 @@ func genCharacter(ctx context.Context, s gen.Provider, rc rosterChar, statesPer,
 
 	t0 := time.Now()
 	fmt.Printf("[%s] generating base (pixel)...\n", rc.Name)
-	craw, err := s.GenerateImage(ctx, sprite.BuildCharacterPrompt(rc.Desc, style), nil, "1:1")
+	craw, err := s.GenerateImage(ctx, sprite.BuildCharacterPrompt(rc.Desc, style, ""), nil, "1:1")
 	if err != nil {
 		fmt.Printf("[%s] base failed: %v\n", rc.Name, err)
 		return out

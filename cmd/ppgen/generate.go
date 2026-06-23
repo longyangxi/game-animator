@@ -73,7 +73,7 @@ func savePNG(path string, img image.Image) {
 
 // generateBase generates the base character and returns the cleaned-up image (background removed and pixelated) along with its PNG bytes.
 func generateBase(ctx context.Context, p gen.Provider, desc, styleKey, style string) (*image.NRGBA, []byte, error) {
-	raw, err := p.GenerateImage(ctx, sprite.BuildCharacterPrompt(desc, style), nil, "1:1")
+	raw, err := p.GenerateImage(ctx, sprite.BuildCharacterPrompt(desc, style, ""), nil, "1:1")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -108,7 +108,7 @@ func genState(ctx context.Context, p gen.Provider, opt options, style string,
 	best.Name, best.Expected = spec.Name, expected
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		prompt := sprite.BuildStripPrompt(opt.desc, style, spec, feedback)
+		prompt := sprite.BuildStripPrompt(opt.desc, style, spec, feedback, "")
 		if len(refs) > 1 {
 			prompt += "\nMotion reference: the second attached image is the FRONT-view animation strip of this same character performing this exact action. Reproduce the same motion timing and pose phases frame by frame, but viewed from the required facing direction above.\n"
 		}

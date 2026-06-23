@@ -9,3 +9,6 @@ Mode: subagent-driven. BASE before Task 1 = 41f34c2.
 - Task 4: complete (commits 7368199..2379106, backend Perspective args field, review clean)
 - Task 5: complete (commits 2379106..0eca2c0, CharacterDef.perspective + 3 sites + load fallback, tsc clean, review clean)
 - Task 6: complete (commits 0eca2c0..4620fa1, View Select + both generate calls + i18n x4, tsc+build clean, review clean). Manual GUI smoke pending human.
+- Final whole-branch review (opus): MERGE WITH FIXES — Critical: 6 cmd/ call sites (ppgen/ppvalidate/ppsamples) not updated for new builder signatures → `go build ./...` broken. Root cause: plan only enumerated internal/+app.go callers (grep was scoped to those), missing cmd/. Design otherwise excellent (losslessness byte-identical, iso isolated, key/type consistent E2E).
+- Fix wave (commit 0be24e0): appended `, ""` to all 6 cmd/ call sites. Controller-verified: `go build ./...` exit 0; TestPromptGoldenFlat+TestPromptIso pass without -update; 49/49 sprite tests green.
+- FEATURE COMPLETE & VERIFIED. Outstanding: GUI visual smoke test (iso renders ¾ tilt) pending human. Minors (non-blocking): perspectiveStripClause \n\n (cosmetic); `as any` casts on generate calls (pre-existing).
