@@ -24,7 +24,7 @@ func perspectiveCharacterBullet(perspective string) string {
 // It is empty for flat so the flat strip prompt is unchanged.
 func perspectiveStripClause(perspective string) string {
 	if isIso(perspective) {
-		return "Isometric view lock: render every pose in a classic 2.5D isometric / top-down three-quarter view — a fixed high camera tilted down about 35 degrees, orthographic pixel-isometric, no vanishing-point perspective and no 3D render. Hold this exact downward tilt in every pose.\n\n"
+		return "Camera lock — THIS OVERRIDES THE DEFAULT SPRITE VIEW: draw every pose from the SAME high three-quarter overhead camera as the attached reference image — tilted down about 35 degrees so the tops of the head and shoulders show and the figure stands on an implied isometric ground plane. This is a 2.5D isometric / top-down three-quarter view. Do NOT use a flat side-on platformer or fighting-game profile, and do NOT rotate the character to a pure side view for the action — keep the exact same overhead tilt in every pose; only the limbs and body move within it. Orthographic pixel-isometric, no vanishing-point perspective, no 3D render.\n\n"
 	}
 	return ""
 }
@@ -155,7 +155,11 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback, persp
 	b.WriteString("Subject lock (top priority):\n")
 	b.WriteString("- The attached image is the canonical character. Match it exactly across every pose: face, hairstyle, build, outfit, accessories.\n")
 	b.WriteString("- Palette is binding. Re-sample each region's hue, saturation and value from the reference — skin, hair, every garment, every piece of gear. Do not re-tint, re-light, brighten, darken, or substitute a similar shade.\n")
-	b.WriteString("- Hold one fixed camera and facing. The figure never rotates, mirrors, ages, or restyles between poses — only the body moves.\n\n")
+	b.WriteString("- Hold one fixed camera and facing. The figure never rotates, mirrors, ages, or restyles between poses — only the body moves.\n")
+	if isIso(perspective) {
+		b.WriteString("- That fixed camera is the reference's high three-quarter overhead view (tilted down about 35 degrees); never flatten to a side-on view for the action.\n")
+	}
+	b.WriteString("\n")
 
 	if d := strings.TrimSpace(description); d != "" {
 		fmt.Fprintf(&b, "Subject notes: %s.\n\n", d)

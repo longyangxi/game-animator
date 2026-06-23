@@ -61,8 +61,8 @@ func TestPromptIso(t *testing.T) {
 	if isoStrip == flatStrip {
 		t.Fatal("iso strip prompt must differ from flat even with no facing")
 	}
-	if !strings.Contains(isoStrip, "Isometric view lock") {
-		t.Errorf("iso strip prompt missing the isometric view lock: %q", isoStrip)
+	if !strings.Contains(isoStrip, "isometric") || !strings.Contains(isoStrip, "side-on") {
+		t.Errorf("iso strip prompt missing the isometric camera lock / anti-side-view markers: %q", isoStrip)
 	}
 
 	// "flat" string is treated the same as empty.
