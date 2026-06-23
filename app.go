@@ -163,7 +163,7 @@ func (a *App) SaveProviderKey(provider, key string) error {
 // SaveProviderModel changes a provider's image model (an empty value resets to the default model).
 func (a *App) SaveProviderModel(provider, model string) error {
 	switch provider {
-	case gen.ProviderGemini, gen.ProviderOpenAI, gen.ProviderOpenRouter, gen.ProviderFal, gen.ProviderBytePlus:
+	case gen.ProviderGemini, gen.ProviderOpenAI, gen.ProviderOpenRouter, gen.ProviderFal, gen.ProviderBytePlus, gen.ProviderReplicate:
 	default:
 		return fmt.Errorf("unsupported provider: %s", provider)
 	}
@@ -179,7 +179,7 @@ func (a *App) SaveProviderModel(provider, model string) error {
 // SetProvider changes the active provider.
 func (a *App) SetProvider(provider string) error {
 	switch provider {
-	case gen.ProviderGemini, gen.ProviderOpenAI, gen.ProviderOpenRouter, gen.ProviderFal, gen.ProviderBytePlus:
+	case gen.ProviderGemini, gen.ProviderOpenAI, gen.ProviderOpenRouter, gen.ProviderFal, gen.ProviderBytePlus, gen.ProviderReplicate:
 	default:
 		return fmt.Errorf("unsupported provider: %s", provider)
 	}
