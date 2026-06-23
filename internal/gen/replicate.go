@@ -152,28 +152,48 @@ func (c *Replicate) ValidateKey(ctx context.Context) error {
 }
 
 // createPrediction POSTs a prediction with Prefer:wait so it returns synchronously when fast.
+// On a 429 throttle (Replicate caps accounts with < $5 credit to 6 req/min, burst 1) or a 5xx,
+// it waits and retries instead of failing — a throttle becomes a short delay, not a hard error.
 func (c *Replicate) createPrediction(ctx context.Context, endpoint string, body []byte) (*replPrediction, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Prefer", "wait")
+	backoff := 8 * time.Second
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+			backoff *= 2
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Prefer", "wait")
 
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("network error: %w", err)
-	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
-	var pred replPrediction
-	_ = json.Unmarshal(data, &pred)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		resp, err := c.HTTP.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("network error: %w", err)
+			continue // transient network error → retry
+		}
+		data, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+		resp.Body.Close()
+		var pred replPrediction
+		_ = json.Unmarshal(data, &pred)
+		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
+			return &pred, nil
+		}
 		msg := firstNonEmptyStr(pred.Detail, pred.Title, string(data))
-		return nil, fmt.Errorf("Replicate error (%d): %s", resp.StatusCode, msg)
+		lastErr = fmt.Errorf("Replicate error (%d): %s", resp.StatusCode, msg)
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			continue // throttle / server error → wait and retry
+		}
+		return nil, lastErr // other 4xx (bad token, bad input) → fail fast
 	}
-	return &pred, nil
+	return nil, lastErr
 }
 
 // poll waits for an async prediction to reach a terminal state.
