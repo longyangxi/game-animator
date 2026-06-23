@@ -18,6 +18,8 @@ interface IProps {
   allStates: StateDef[];
   directions: DirectionInfo[];
   cellSize: number;
+  padFrac: number;
+  onPadFracChange: (frac: number) => void;
   busy: boolean;
   onUpdateState: (id: string, patch: Partial<StateDef>) => void;
   onSelect: (id: string) => void;
@@ -26,7 +28,7 @@ interface IProps {
 }
 
 // Main preview area on the right: playback / frame management / atlas
-export default function PreviewPanel({ state, allStates, directions, cellSize, busy, onUpdateState, onSelect, onRegenerate, onExport }: IProps) {
+export default function PreviewPanel({ state, allStates, directions, cellSize, padFrac, onPadFracChange, busy, onUpdateState, onSelect, onRegenerate, onExport }: IProps) {
   const { t, lang } = useI18n();
   const [tab, setTab] = useState<ViewTab>("play");
   const [feedback, setFeedback] = useState("");
@@ -129,7 +131,7 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
         )}
 
         {state.status === "done" && tab === "play" && frames.length > 0 && (
-          <AnimPlayer frames={frames} fps={state.fps} loop={state.loop} cellSize={cellSize} transforms={frameTransforms} />
+          <AnimPlayer frames={frames} fps={state.fps} loop={state.loop} cellSize={cellSize} padFrac={padFrac} transforms={frameTransforms} />
         )}
 
         {tab === "play" && state.dirBase && (
@@ -230,6 +232,8 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
                 items={state.items}
                 index={alignIdx}
                 cellSize={cellSize}
+                padFrac={padFrac}
+                onPadFracChange={onPadFracChange}
                 onClose={() => setAlignIdx(null)}
                 onSave={(tr: FrameTransform) => {
                   onUpdateState(state.id, {
@@ -242,7 +246,7 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, b
           </>
         )}
 
-        {tab === "atlas" && <AtlasView states={doneStates} cellSize={cellSize} onExport={onExport} />}
+        {tab === "atlas" && <AtlasView states={doneStates} cellSize={cellSize} padFrac={padFrac} onExport={onExport} />}
       </div>
     </>
   );
@@ -283,7 +287,7 @@ function EmptyHero({ hasResults }: { hasResults: boolean }) {
 }
 
 // Client-side atlas preview
-function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSize: number; onExport: () => void }) {
+function AtlasView({ states, cellSize, padFrac, onExport }: { states: StateDef[]; cellSize: number; padFrac: number; onExport: () => void }) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -318,7 +322,7 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
 
       // Compose the preview atlas at the padded cell size so it matches the exported sheet
       // (which keeps content dragged past the original cell edge).
-      const pad = framePad(cellSize);
+      const pad = framePad(cellSize, padFrac);
       const pcell = cellSize + 2 * pad;
       const maxFrames = Math.max(1, ...rows.map((r) => r.imgs.length));
       const w = maxFrames * pcell;
@@ -343,7 +347,7 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
     return () => {
       cancelled = true;
     };
-  }, [states, cellSize]);
+  }, [states, cellSize, padFrac]);
 
   if (states.length === 0) {
     return (
@@ -362,7 +366,7 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
       <div className="row">
         <div className="atlas-meta">
           <span>{t("sheet_size", { w: dims.w, h: dims.h })}</span>
-          <span>{t("cell", { n: cellSize + 2 * framePad(cellSize) })}</span>
+          <span>{t("cell", { n: cellSize + 2 * framePad(cellSize, padFrac) })}</span>
           <span>{t("rows_states", { n: states.length })}</span>
         </div>
         <span className="spacer" />

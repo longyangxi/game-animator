@@ -20,9 +20,13 @@ moved anywhere in data terms. The limitation is purely two clip points:
 
 ## Decision
 
-Add a fixed **padding margin** around the cell so editing and export both operate on a
-larger `cellSize + 2·pad` working canvas. **No shrink-back / fit-to-content pass** — it
-was considered and rejected (see below).
+Add a **padding margin** around the cell so editing and export both operate on a larger
+`cellSize + 2·pad` working canvas. The margin is a **project-level setting** (`padFrac`,
+fraction of the cell per side) that **defaults to 0** — i.e. out of the box the pipeline is
+byte-identical to the original fixed cell. The user raises it on demand via a **slider in
+the Align modal**. Because it is one shared value, adjusting it for any frame applies to
+every frame of every animation state at once (required: all frames share one atlas cell
+size). **No shrink-back / fit-to-content pass** — considered and rejected (see below).
 
 ### Why no fit-to-content shrink-back
 
@@ -46,10 +50,14 @@ Padding only enlarges the "cell"; it never moves content relative to other conte
 In scope (all frontend; Go backend untouched):
 
 1. **`frameTransform.ts`** — add:
-   - `PAD_FRAC` constant (fraction of `cellSize` added on *each* side; default ~0.15) and
-     `framePad(cellSize): number` helper (`Math.round(cellSize * PAD_FRAC)`).
-   - An optional `pad = 0` argument to `computeDrawRect`, `applyTransform`, and
+   - `framePad(cellSize, frac = 0): number` helper (`Math.round(cellSize * frac)`) and a
+     `PAD_FRAC_MAX` constant for the slider's upper bound.
+   - An optional `pad = 0` (pixels) argument to `computeDrawRect`, `applyTransform`, and
      `bakeTransformed`. With `pad = 0` behavior is byte-identical to today.
+
+   `padFrac` lives as React state in `App.tsx`, is persisted in the session JSON
+   (defaults to 0; no migration needed for old sessions), and is threaded to the Align
+   modal (with an `onPadFracChange` callback), the player, the atlas preview, and export.
    - `computeDrawRect` adds `pad` to both `x` and `y` of its result (content keeps its
      existing position within the inner cell, shifted into the padded canvas).
    - `bakeTransformed` renders into a `(cellSize + 2·pad)` square. The identity fast-path
@@ -58,7 +66,8 @@ In scope (all frontend; Go backend untouched):
 2. **`AlignModal.tsx`** (the fix) — map the on-screen canvas to the padded size, draw the
    **original cell as an inset guide rectangle** (inset by `pad·k`), composite onion
    neighbors + current frame with the `pad` offset, and update the view↔content scale
-   factor `k` to use the padded size. Dragged-out content stays visible and editable.
+   factor `k` to use the padded size. Add a **Margin slider** (0 … `PAD_FRAC_MAX`) wired to
+   `onPadFracChange`, applied live. Dragged-out content stays visible and editable.
 
 3. **`AnimPlayer.tsx` + `PreviewPanel` AtlasView** (preview parity) — size their canvases
    to the padded cell and pass `pad`. Required so the in-app player/atlas show the same
@@ -75,12 +84,13 @@ rotation/flip.
 ## Untouched
 
 Go backend, slicing/extraction (`ExtractFrames` still yields `cellSize` frames), the
-immutable source PNGs, stored transforms, and the session format — `cellSize` saved stays
-the original; `pad` is derived at runtime via `framePad(cellSize)`, so no migration.
+immutable source PNGs, and stored transforms. The session gains one optional `padFrac`
+field (absent ⇒ 0), so old sessions load unchanged; `cellSize` saved stays the original.
 
 ## Testing
 
-- Unit (`frameTransform.test.ts`, vitest): `framePad` rounding; `computeDrawRect` with
+- Unit (`frameTransform.test.ts`, vitest): `framePad(cellSize, frac)` rounding and the
+  `frac = 0` default; `computeDrawRect` with
   `pad > 0` offsets x/y by exactly `pad` versus the `pad = 0` result and is otherwise
   unchanged; `pad = 0` is identical to current behavior (regression guard).
 - Manual: a frame with content at the cell edge can be dragged so the overflow remains

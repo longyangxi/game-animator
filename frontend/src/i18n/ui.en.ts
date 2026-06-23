@@ -186,6 +186,7 @@ const en: Record<string, string> = {
   align_done: "Done",
   align_cancel: "Cancel",
   align_scale: "Scale",
+  align_margin: "Margin",
   align_hint: "Drag to move · scroll to scale · arrow keys nudge 1px",
   align_open: "Align this frame",
   align_adjusted: "Adjusted",

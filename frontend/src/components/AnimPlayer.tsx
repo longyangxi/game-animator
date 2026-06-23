@@ -10,11 +10,12 @@ interface IProps {
   fps: number;
   loop: boolean;
   cellSize: number;
+  padFrac?: number;
   transforms?: (FrameTransform | undefined)[];
 }
 
 // Canvas-based animation player
-export default function AnimPlayer({ frames, fps, loop, cellSize, transforms }: IProps) {
+export default function AnimPlayer({ frames, fps, loop, cellSize, padFrac = 0, transforms }: IProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imagesRef = useRef<HTMLImageElement[]>([]);
@@ -25,6 +26,8 @@ export default function AnimPlayer({ frames, fps, loop, cellSize, transforms }: 
   const stateRef = useRef({ idx: 0, acc: 0, last: 0, playing: true, fps, loop });
   const transformsRef = useRef(transforms);
   transformsRef.current = transforms;
+  const padFracRef = useRef(padFrac);
+  padFracRef.current = padFrac;
 
   // Reflect external fps changes
   useEffect(() => setPlayFps(fps), [fps]);
@@ -103,7 +106,7 @@ export default function AnimPlayer({ frames, fps, loop, cellSize, transforms }: 
       const h = img.naturalHeight;
       // Render into the padded working canvas so content dragged past the cell edge
       // shows the same framing the export keeps (WYSIWYG with the Align modal).
-      const pad = framePad(w);
+      const pad = framePad(w, padFracRef.current);
       const size = w + 2 * pad;
       if (canvas.width !== size || canvas.height !== size) {
         canvas.width = size;

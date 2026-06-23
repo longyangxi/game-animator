@@ -3,19 +3,21 @@ import { Dialog, DialogContent } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { useI18n } from "../i18n";
 import { FrameItem, FrameTransform } from "../types";
-import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform, framePad } from "../lib/frameTransform";
+import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform, framePad, PAD_FRAC_MAX } from "../lib/frameTransform";
 
 interface IProps {
   items: FrameItem[];
   index: number;
   cellSize: number;
+  padFrac: number; // project-wide working margin (shared by every frame); 0 = none
+  onPadFracChange: (frac: number) => void;
   onSave: (t: FrameTransform) => void;
   onClose: () => void;
 }
 
 const VIEW = 360; // on-screen canvas size (px)
 
-export default function AlignModal({ items, index, cellSize, onSave, onClose }: IProps) {
+export default function AlignModal({ items, index, cellSize, padFrac, onPadFracChange, onSave, onClose }: IProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgsRef = useRef<Record<number, HTMLImageElement>>({});
@@ -46,7 +48,7 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
     if (!ctx) return;
     // The on-screen canvas shows the padded working area (cellSize + 2*pad); the original
     // cell is drawn as an inset guide so dragged-out content stays visible and editable.
-    const pad = framePad(cellSize);
+    const pad = framePad(cellSize, padFrac);
     const paddedCell = cellSize + 2 * pad;
     const k = VIEW / paddedCell;
     const cs = cellSize * k; // inner cell size in view px
@@ -72,7 +74,7 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
     if (im && im.complete) {
       applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(draftRef.current, k), cs, pk);
     }
-  }, [cellSize, index, items, neighbors, onion]);
+  }, [cellSize, padFrac, index, items, neighbors, onion]);
 
   useEffect(draw, [draw, draft]);
 
@@ -84,7 +86,7 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragRef.current) return;
-    const k = (cellSize + 2 * framePad(cellSize)) / VIEW; // view px → content px (padded canvas)
+    const k = (cellSize + 2 * framePad(cellSize, padFrac)) / VIEW; // view px → content px (padded canvas)
     const ndx = draftRef.current.dx + (e.clientX - dragRef.current.x) * k;
     const ndy = draftRef.current.dy + (e.clientY - dragRef.current.y) * k;
     dragRef.current = { x: e.clientX, y: e.clientY };
@@ -141,6 +143,15 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
               style={{ flex: 1 }}
             />
             <span>{draft.scale.toFixed(2)}×</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {t("align_margin")}
+            <input
+              type="range" min={0} max={PAD_FRAC_MAX} step={0.01} value={padFrac}
+              onChange={(e) => onPadFracChange(+e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <span>{Math.round(padFrac * 100)}%</span>
           </label>
           <span className="hint">{t("align_hint")}</span>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

@@ -3,15 +3,16 @@ import type { FrameTransform } from "../types";
 export const SCALE_MIN = 0.5;
 export const SCALE_MAX = 1.5;
 
-// Fraction of the cell added as a transparent working margin on EACH side, so frames
-// whose content reaches the cell edge (e.g. an extended sword) still have room to be
-// nudged in the Align modal without clipping. Tunable; framePad rounds it to whole px.
-export const PAD_FRAC = 0.15;
+// Upper bound for the working-margin slider (fraction of the cell, per side).
+export const PAD_FRAC_MAX = 0.4;
 
-// Pixel margin added per side for a given cell. The padded working canvas is
-// cellSize + 2 * framePad(cellSize).
-export function framePad(cellSize: number): number {
-  return Math.round(cellSize * PAD_FRAC);
+// Pixel margin added per side for a given cell, where `frac` is a per-project setting
+// (default 0 — no margin, identical to the original fixed-cell pipeline). The padded
+// working canvas is cellSize + 2 * framePad(cellSize, frac). Users raise `frac` in the
+// Align modal when a frame's content reaches the cell edge (e.g. an extended sword) and
+// needs room to be nudged without clipping.
+export function framePad(cellSize: number, frac = 0): number {
+  return Math.round(cellSize * frac);
 }
 
 export function identityTransform(): FrameTransform {

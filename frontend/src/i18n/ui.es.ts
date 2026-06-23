@@ -186,6 +186,7 @@ const es: Record<string, string> = {
   align_done: "Hecho",
   align_cancel: "Cancelar",
   align_scale: "Escala",
+  align_margin: "Margen",
   align_hint: "Arrastra para mover · rueda para escalar · flechas 1px",
   align_open: "Alinear este fotograma",
   align_adjusted: "Ajustado",

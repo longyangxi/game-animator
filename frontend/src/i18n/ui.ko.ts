@@ -186,6 +186,7 @@ const ko: Record<string, string> = {
   align_done: "완료",
   align_cancel: "취소",
   align_scale: "크기",
+  align_margin: "여백",
   align_hint: "드래그로 이동 · 스크롤로 크기 · 방향키 1px 미세조정",
   align_open: "이 프레임 정렬",
   align_adjusted: "조정됨",

@@ -47,6 +47,7 @@ export default function App() {
     styleCustom: "",
   });
   const [cellSize, setCellSize] = useState(256);
+  const [padFrac, setPadFrac] = useState(0); // working margin per side (fraction of cell); 0 = no margin
   const [states, setStates] = useState<StateDef[]>([]);
   const [directions, setDirections] = useState<DirectionInfo[]>([]);
   const [presets, setPresets] = useState<PresetInfo[]>(FALLBACK_PRESETS);
@@ -62,6 +63,8 @@ export default function App() {
   charRef.current = character;
   const cellRef = useRef(cellSize);
   cellRef.current = cellSize;
+  const padRef = useRef(padFrac);
+  padRef.current = padFrac;
   const cancelRef = useRef(false); // Flag to abort the entire generation loop
   const busyRef = useRef(busy);
   busyRef.current = busy;
@@ -99,6 +102,7 @@ export default function App() {
             });
           }
           if (typeof s?.cellSize === "number") setCellSize(s.cellSize);
+          if (typeof s?.padFrac === "number") setPadFrac(s.padFrac);
           if (Array.isArray(s?.states)) {
             // Safely clean up states left mid-generation; exclude legacy procedural animation states
             const states: StateDef[] = s.states
@@ -125,10 +129,10 @@ export default function App() {
   useEffect(() => {
     if (!restoredRef.current) return;
     const t = setTimeout(() => {
-      SaveSession(JSON.stringify({ v: 1, character, cellSize, states, selectedId })).catch(() => {});
+      SaveSession(JSON.stringify({ v: 1, character, cellSize, padFrac, states, selectedId })).catch(() => {});
     }, 1200);
     return () => clearTimeout(t);
-  }, [character, cellSize, states, selectedId]);
+  }, [character, cellSize, padFrac, states, selectedId]);
 
   // Global shortcuts: ⌘, Settings / ⌘E Export / ⌘G Gallery
   useEffect(() => {
@@ -504,7 +508,7 @@ export default function App() {
       return;
     }
     try {
-      const pad = framePad(cellRef.current);
+      const pad = framePad(cellRef.current, padRef.current);
       const outDir: any = await ExportProject({
         character: charRef.current.name.trim() || "character",
         // Frames are baked onto the padded working canvas; the atlas cell must match.
@@ -635,6 +639,8 @@ export default function App() {
             allStates={states}
             directions={directions}
             cellSize={cellSize}
+            padFrac={padFrac}
+            onPadFracChange={setPadFrac}
             busy={busy}
             onUpdateState={updateState}
             onSelect={setSelectedId}

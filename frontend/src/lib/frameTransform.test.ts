@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { identityTransform, isIdentity, clampScale, computeDrawRect, framePad, PAD_FRAC, SCALE_MIN, SCALE_MAX } from "./frameTransform";
+import { identityTransform, isIdentity, clampScale, computeDrawRect, framePad, PAD_FRAC_MAX, SCALE_MIN, SCALE_MAX } from "./frameTransform";
 
 describe("identityTransform / isIdentity", () => {
   it("identity is scale 1, no offset", () => {
@@ -50,13 +50,18 @@ describe("computeDrawRect (bottom-center anchor)", () => {
 });
 
 describe("framePad", () => {
-  it("is round(cellSize * PAD_FRAC) — an integer pixel margin per side", () => {
-    expect(framePad(256)).toBe(Math.round(256 * PAD_FRAC));
-    expect(framePad(200)).toBe(Math.round(200 * PAD_FRAC));
-    expect(Number.isInteger(framePad(256))).toBe(true);
+  it("rounds cellSize * frac to a whole-pixel margin per side", () => {
+    expect(framePad(256, 0.15)).toBe(38); // round(38.4)
+    expect(framePad(200, 0.1)).toBe(20);
+    expect(Number.isInteger(framePad(256, 0.15))).toBe(true);
   });
-  it("is zero for a zero cell", () => {
-    expect(framePad(0)).toBe(0);
+  it("defaults to no margin (frac defaults to 0)", () => {
+    expect(framePad(256)).toBe(0);
+    expect(framePad(256, 0)).toBe(0);
+    expect(framePad(0, 0.15)).toBe(0);
+  });
+  it("exposes a slider upper bound", () => {
+    expect(PAD_FRAC_MAX).toBeGreaterThan(0);
   });
 });
 

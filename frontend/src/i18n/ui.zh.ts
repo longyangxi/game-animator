@@ -186,6 +186,7 @@ const zh: Record<string, string> = {
   align_done: "完成",
   align_cancel: "取消",
   align_scale: "缩放",
+  align_margin: "留白",
   align_hint: "拖动移动 · 滚轮缩放 · 方向键微调 1px",
   align_open: "对齐这一帧",
   align_adjusted: "已调整",
