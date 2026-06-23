@@ -67,6 +67,97 @@ func extractContent(strip *image.NRGBA, span colSpan, h int) frameContent {
 	return frameContent{img: dst, minX: minX, cx: cx, bottom: maxY}
 }
 
+// extractRowContents segments a single horizontal row of poses into per-pose frame contents, using
+// connected-component ownership (so a sword crossing a column cut stays with its body), and falls
+// back to plain column-clipping when ownership leaves a segment empty.
+func extractRowContents(strip *image.NRGBA, expected int) ([]frameContent, int) {
+	segs, natural := segmentStrip(strip, expected)
+	if len(segs) == 0 {
+		return nil, 0
+	}
+	h := strip.Rect.Dy()
+	labels, ncomp := labelComponents(strip)
+	owner := assignComponentOwners(strip, labels, ncomp, segs)
+	owned := make([]frameContent, len(segs))
+	useOwnership := true
+	for i := range segs {
+		fc := extractOwnedContent(strip, labels, owner, i)
+		if fc.img == nil {
+			useOwnership = false
+			break
+		}
+		owned[i] = fc
+	}
+	if useOwnership {
+		return owned, natural
+	}
+	var fcs []frameContent
+	for _, s := range segs {
+		fc := extractContent(strip, s, h)
+		if fc.img != nil {
+			fcs = append(fcs, fc)
+		}
+	}
+	return fcs, natural
+}
+
+// splitRows divides a grid strip into exactly `rows` horizontal bands at the background gutters
+// between rows (detected via the per-row alpha projection). It returns origin-(0,0) copies so the
+// existing column logic works unchanged. If it cannot find exactly `rows` content bands — e.g. the
+// image is actually a single row — it returns nil so the caller falls back to single-row handling.
+func splitRows(strip *image.NRGBA, rows int) []*image.NRGBA {
+	w, h := strip.Rect.Dx(), strip.Rect.Dy()
+	if rows < 2 || w == 0 || h == 0 {
+		return nil
+	}
+	p := make([]float64, h)
+	for y := 0; y < h; y++ {
+		var s float64
+		for x := 0; x < w; x++ {
+			s += float64(strip.Pix[strip.PixOffset(x, y)+3])
+		}
+		p[y] = s
+	}
+	win := h / 220
+	if win < 3 {
+		win = 3
+	}
+	p = smoothProfile(p, win)
+	mx := maxOf(p)
+	if mx <= 0 {
+		return nil
+	}
+	minRun := h / 100
+	if minRun < 4 {
+		minRun = 4
+	}
+	runs := contentRuns(p, 0.045*mx, 0.18*mx, minRun)
+	runs = dropMinorRuns(p, runs, 0.20)
+	if len(runs) != rows {
+		return nil // not a clean `rows`-row grid → caller falls back to single row
+	}
+	// Cut at the midpoint of each inter-row gutter.
+	bounds := make([]int, 0, rows+1)
+	bounds = append(bounds, 0)
+	for i := 0; i+1 < len(runs); i++ {
+		bounds = append(bounds, (runs[i].end+runs[i+1].start)/2)
+	}
+	bounds = append(bounds, h)
+
+	bands := make([]*image.NRGBA, 0, rows)
+	for i := 0; i < rows; i++ {
+		y0, y1 := bounds[i], bounds[i+1]
+		band := image.NewNRGBA(image.Rect(0, 0, w, y1-y0))
+		for y := y0; y < y1; y++ {
+			si := strip.PixOffset(0, y)
+			di := band.PixOffset(0, y-y0)
+			copy(band.Pix[di:di+w*4], strip.Pix[si:si+w*4])
+		}
+		bands = append(bands, band)
+	}
+	return bands
+}
+
 // labelComponents는 4-연결 flood fill로 불투명 픽셀에 연결요소 id(1..n)를 부여합니다.
 // 투명/빈 픽셀은 0입니다. labels는 행 우선 1차원 배열(인덱스 y*w+x)입니다.
 func labelComponents(strip *image.NRGBA) (labels []int, n int) {
@@ -206,43 +297,37 @@ func extractOwnedContent(strip *image.NRGBA, labels []int, owner []int, segIdx i
 // by center of mass, and preserves vertical offsets (jump arcs, etc.) against a common baseline.
 func ExtractFrames(strip *image.NRGBA, expected, cellW, cellH, margin int) ExtractResult {
 	res := ExtractResult{Expected: expected}
-	segs, natural := segmentStrip(strip, expected)
-	if len(segs) == 0 {
-		res.Warnings = append(res.Warnings, "No character was found in the image. Please regenerate.")
-		return res
-	}
-	h := strip.Rect.Dy()
 
-	// 컬럼 컷이 검/꼬리처럼 가로로 뻗은 연결요소를 관통하면, 잘린 끝이 옆 프레임으로
-	// 새어든다(A1 bleed). 이를 막기 위해 연결요소(blob)를 "질량이 가장 많이 걸친 세그먼트"가
-	// 통째로 소유하게 하고, 각 프레임은 자기가 소유한 blob 픽셀만 가져온다(컬럼 경계를 넘어도
-	// 자기 검은 따라오고, 남의 검끝은 들어오지 않는다). 어떤 세그먼트가 소유 blob이 0이 되는
-	// 진짜 겹침(A3)에서는 옛 컬럼-클립 방식으로 안전하게 되돌린다.
-	labels, ncomp := labelComponents(strip)
-	owner := assignComponentOwners(strip, labels, ncomp, segs)
+	// Grid-aware: 4+ poses are generated as a 2-row grid (roomy near-square cells, so big weapon
+	// swings cross less) while still being ONE image — identity, scale and baseline stay consistent.
+	// Split the strip into rows, segment each row into columns, and collect frames row-major. If the
+	// image has no clean horizontal row gutter (i.e. it's a single row), splitRows returns a count
+	// that doesn't match and we fall back to single-row extraction (existing behavior, unchanged).
 	var fcs []frameContent
-	owned := make([]frameContent, len(segs))
-	useOwnership := true
-	for i := range segs {
-		fc := extractOwnedContent(strip, labels, owner, i)
-		if fc.img == nil {
-			useOwnership = false
-			break
-		}
-		owned[i] = fc
-	}
-	if useOwnership {
-		fcs = owned
-	} else {
-		for _, s := range segs {
-			fc := extractContent(strip, s, h)
-			if fc.img != nil {
-				fcs = append(fcs, fc)
+	var natural int
+	gridHandled := false
+	if rows, cols := gridForFrames(expected); rows > 1 {
+		if bands := splitRows(strip, rows); len(bands) == rows {
+			gridHandled = true
+			for r, band := range bands {
+				exp := cols
+				if r == rows-1 {
+					exp = expected - cols*(rows-1) // last row holds the remainder
+				}
+				if exp < 1 {
+					exp = 1
+				}
+				rfcs, rn := extractRowContents(band, exp)
+				fcs = append(fcs, rfcs...)
+				natural += rn
 			}
 		}
 	}
+	if !gridHandled {
+		fcs, natural = extractRowContents(strip, expected)
+	}
 	if len(fcs) == 0 {
-		res.Warnings = append(res.Warnings, "No valid pose was found. Please regenerate.")
+		res.Warnings = append(res.Warnings, "No character was found in the image. Please regenerate.")
 		return res
 	}
 

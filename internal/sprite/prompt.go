@@ -120,8 +120,13 @@ func BuildCharacterPrompt(description, style string) string {
 func BuildStripPrompt(description, style string, spec StateSpec, feedback string) string {
 	var b strings.Builder
 	n := spec.Frames
+	rows, cols := gridForFrames(n)
 
-	fmt.Fprintf(&b, "Draw a single horizontal row of exactly %d game-sprite poses of one character for the \"%s\" animation, ordered left to right. This is raw sprite art, not a photo or a film — draw only the character poses on a flat background.\n\n", n, spec.Name)
+	if rows > 1 {
+		fmt.Fprintf(&b, "Draw exactly %d game-sprite poses of one character for the \"%s\" animation, laid out in a grid of %d columns by %d rows, read left to right then top to bottom (pose 1 top-left, the next finishing the top row, then continuing on the second row). This is raw sprite art, not a photo or a film — draw only the character poses on a flat background.\n\n", n, spec.Name, cols, rows)
+	} else {
+		fmt.Fprintf(&b, "Draw a single horizontal row of exactly %d game-sprite poses of one character for the \"%s\" animation, ordered left to right. This is raw sprite art, not a photo or a film — draw only the character poses on a flat background.\n\n", n, spec.Name)
+	}
 
 	b.WriteString("Subject lock (top priority):\n")
 	b.WriteString("- The attached image is the canonical character. Match it exactly across every pose: face, hairstyle, build, outfit, accessories.\n")
@@ -157,14 +162,24 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback string
 		b.WriteString("It plays once: give it a clear start, peak, and settle.\n\n")
 	}
 
-	b.WriteString("Row layout:\n")
-	fmt.Fprintf(&b, "- Place exactly %d poses in one horizontal row, evenly spaced left to right — %d poses, no more and no fewer. Count them before finishing.\n", n, n)
-	b.WriteString("- Every pose is the SAME size at one shared scale, each filling about 70-85% of the canvas height. No pose may be noticeably smaller, larger, or set further back than the others.\n")
-	b.WriteString("- Leave a generous band of the flat keying background between every pair of poses. The gap must be wide enough that a human can easily see each pose is separate — never touching, overlapping, or bridging.\n")
-	b.WriteString("- Each pose is ONE whole, connected body. Never split a body into separate pieces, and never let two poses touch, overlap, or merge.\n")
-	b.WriteString("- Center each pose's torso horizontally in its share of the row; arms, legs and head move, but the torso stays put and no body part is cut off by the canvas edge.\n")
-	b.WriteString("- Keep all poses standing on one common ground line, unless the action leaves the ground (a jump).\n")
-	b.WriteString("- When the body leans or reaches far to one side, keep the torso/hips within the pose's column so that poses do not bridge into the next gap.\n\n")
+	if rows > 1 {
+		b.WriteString("Grid layout:\n")
+		fmt.Fprintf(&b, "- Arrange exactly %d poses in a clean %d-column by %d-row grid, read left to right then top to bottom — %d poses, no more and no fewer. Count them before finishing.%s\n", n, cols, rows, n, lastCellNote(n, rows*cols))
+		b.WriteString("- Treat each grid slot as its own cell with the pose centered inside it. Every pose is the SAME size at one shared scale, each filling about 70-85% of its cell. No pose may be noticeably smaller, larger, or set further back than the others.\n")
+		b.WriteString("- Leave a generous band of the flat keying background BETWEEN ROWS and BETWEEN COLUMNS, wide enough that each cell is clearly separate. Nothing — not a blade, shield, limb, or trailing effect — may cross into a neighbouring cell or the gap.\n")
+		b.WriteString("- Each pose is ONE whole, connected body. Never split a body into separate pieces, and never let two poses touch, overlap, or merge.\n")
+		b.WriteString("- Keep each pose's whole reach — weapon swing, extended limbs, shield — INSIDE its own cell. If a swing would leave the cell, angle or foreshorten it so its tip stays within the cell.\n")
+		b.WriteString("- Within each row, keep all poses standing on one common ground line, unless the action leaves the ground (a jump).\n\n")
+	} else {
+		b.WriteString("Row layout:\n")
+		fmt.Fprintf(&b, "- Place exactly %d poses in one horizontal row, evenly spaced left to right — %d poses, no more and no fewer. Count them before finishing.\n", n, n)
+		b.WriteString("- Every pose is the SAME size at one shared scale, each filling about 70-85% of the canvas height. No pose may be noticeably smaller, larger, or set further back than the others.\n")
+		b.WriteString("- Leave a generous band of the flat keying background between every pair of poses. The gap must be wide enough that a human can easily see each pose is separate — never touching, overlapping, or bridging.\n")
+		b.WriteString("- Each pose is ONE whole, connected body. Never split a body into separate pieces, and never let two poses touch, overlap, or merge.\n")
+		b.WriteString("- Center each pose's torso horizontally in its share of the row; arms, legs and head move, but the torso stays put and no body part is cut off by the canvas edge.\n")
+		b.WriteString("- Keep all poses standing on one common ground line, unless the action leaves the ground (a jump).\n")
+		b.WriteString("- When the body leans or reaches far to one side, keep the torso/hips within the pose's column so that poses do not bridge into the next gap.\n\n")
+	}
 
 	b.WriteString(canvasContract())
 	b.WriteString("\n")
@@ -178,19 +193,53 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback string
 	return b.String()
 }
 
-// AspectForFrames picks the generation aspect ratio for the frame count. Width scales
-// with the pose count so each pose keeps a roughly constant horizontal share (~perPose of
-// the canvas height) instead of getting more cramped as frames grow — a wider canvas gives
-// big weapon swings room to stay inside their column instead of crossing into the next pose.
-// Clamped to [16:9, 36:9]: small actions stay ~16:9; very wide ones are capped so pose
-// height/detail doesn't collapse on fixed-max-edge providers. (Providers that only accept a
-// fixed aspect set, e.g. Gemini, snap this down to their nearest supported ratio.)
+// gridForFrames returns the (rows, cols) generation/slicing layout for a pose count. Single row for
+// ≤3 frames; a 2-row grid for 4+ so each pose gets a roomy near-square cell (big weapon swings cross
+// less) while staying one image (consistent identity, scale, baseline). cols = ceil(n/rows); the last
+// row holds the remainder (5→2×3 with one empty cell, etc.).
+func gridForFrames(n int) (rows, cols int) {
+	if n <= 3 {
+		if n < 1 {
+			n = 1
+		}
+		return 1, n
+	}
+	return 2, (n + 1) / 2
+}
+
+func gcd(a, b int) int {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	if a == 0 {
+		return 1
+	}
+	return a
+}
+
+// lastCellNote tells the model to leave a trailing empty cell blank when the pose count doesn't
+// fill the grid (e.g. 5 poses in a 2×3 grid, 7 in a 2×4).
+func lastCellNote(n, total int) string {
+	if n < total {
+		return " The bottom-right cell has no pose — leave it as empty flat background."
+	}
+	return ""
+}
+
+// AspectForFrames picks the generation aspect ratio for the frame count. For a 2-row grid it returns
+// cols:rows so each cell is near-square. For a single row (≤3 frames) the width scales with the pose
+// count so each pose keeps a roughly constant horizontal share, clamped to [16:9, 36:9]. (Providers
+// that only accept a fixed aspect set, e.g. Gemini, snap this down to their nearest supported ratio.)
 func AspectForFrames(frames int) string {
 	if frames <= 1 {
 		return "1:1"
 	}
-	const perPose = 0.6                  // each pose's horizontal share, relative to height 1.0
-	const minR, maxR = 16.0 / 9.0, 4.0   // clamp width:height to [16:9, 36:9]
+	if rows, cols := gridForFrames(frames); rows > 1 {
+		g := gcd(cols, rows)
+		return fmt.Sprintf("%d:%d", cols/g, rows/g) // grid → near-square cells (reduced ratio)
+	}
+	const perPose = 0.6                // each pose's horizontal share, relative to height 1.0
+	const minR, maxR = 16.0 / 9.0, 4.0 // clamp width:height to [16:9, 36:9]
 	ratio := float64(frames) * perPose
 	if ratio < minR {
 		ratio = minR
