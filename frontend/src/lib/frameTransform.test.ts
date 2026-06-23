@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { identityTransform, isIdentity, clampScale, computeDrawRect, SCALE_MIN, SCALE_MAX } from "./frameTransform";
+import { identityTransform, isIdentity, clampScale, computeDrawRect, framePad, PAD_FRAC, SCALE_MIN, SCALE_MAX } from "./frameTransform";
 
 describe("identityTransform / isIdentity", () => {
   it("identity is scale 1, no offset", () => {
@@ -35,6 +35,29 @@ describe("computeDrawRect (bottom-center anchor)", () => {
   it("offset shifts the rect", () => {
     expect(computeDrawRect(256, 256, { scale: 1, dx: 10, dy: -5 }, 256)).toEqual({ x: 10, y: -5, w: 256, h: 256 });
   });
+  it("pad shifts the rect into the padded canvas by (pad, pad)", () => {
+    // identity content, padded canvas: the inner cell sits inset by pad on every side
+    expect(computeDrawRect(256, 256, undefined, 256, 10)).toEqual({ x: 10, y: 10, w: 256, h: 256 });
+  });
+  it("pad composes with scale+offset (constant +pad on x and y)", () => {
+    // base (scale 0.5): {x:64,y:128,w:128,h:128}; +pad 20 → {x:84,y:148}
+    expect(computeDrawRect(256, 256, { scale: 0.5, dx: 0, dy: 0 }, 256, 20)).toEqual({ x: 84, y: 148, w: 128, h: 128 });
+  });
+  it("pad defaults to 0 (regression: identical to unpadded)", () => {
+    expect(computeDrawRect(256, 256, { scale: 1, dx: 10, dy: -5 }, 256, 0))
+      .toEqual(computeDrawRect(256, 256, { scale: 1, dx: 10, dy: -5 }, 256));
+  });
+});
+
+describe("framePad", () => {
+  it("is round(cellSize * PAD_FRAC) — an integer pixel margin per side", () => {
+    expect(framePad(256)).toBe(Math.round(256 * PAD_FRAC));
+    expect(framePad(200)).toBe(Math.round(200 * PAD_FRAC));
+    expect(Number.isInteger(framePad(256))).toBe(true);
+  });
+  it("is zero for a zero cell", () => {
+    expect(framePad(0)).toBe(0);
+  });
 });
 
 import { applyTransform, scaleTransform } from "./frameTransform";
@@ -57,5 +80,12 @@ describe("applyTransform", () => {
     expect(ctx.imageSmoothingEnabled).toBe(false);
     expect(calls).toHaveLength(1);
     expect(calls[0]).toEqual([img, 64, 128, 128, 128]);
+  });
+  it("draws at the pad-offset rect when pad is given", () => {
+    const calls: any[] = [];
+    const ctx: any = { imageSmoothingEnabled: true, drawImage: (...a: any[]) => calls.push(a) };
+    const img: any = {};
+    applyTransform(ctx, img, 256, 256, { scale: 1, dx: 0, dy: 0 }, 256, 10);
+    expect(calls[0]).toEqual([img, 10, 10, 256, 256]);
   });
 });

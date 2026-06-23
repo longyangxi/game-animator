@@ -11,7 +11,7 @@ import { Button } from "./components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./components/ui/dialog";
 import { CharacterDef, DirectionInfo, FALLBACK_PRESETS, FrameItem, PresetInfo, StateDef, selectedFrames, uid } from "./types";
 import { useI18n } from "./i18n";
-import { bakeTransformed } from "./lib/frameTransform";
+import { bakeTransformed, framePad } from "./lib/frameTransform";
 import { directionName } from "./i18n/catalog";
 import logoUrl from "./assets/logo.svg";
 
@@ -504,16 +504,18 @@ export default function App() {
       return;
     }
     try {
+      const pad = framePad(cellRef.current);
       const outDir: any = await ExportProject({
         character: charRef.current.name.trim() || "character",
-        cellSize: cellRef.current,
+        // Frames are baked onto the padded working canvas; the atlas cell must match.
+        cellSize: cellRef.current + 2 * pad,
         states: await Promise.all(
           done.map(async (s) => ({
             name: s.name,
             fps: s.fps,
             loop: s.loop,
             frames: await Promise.all(
-              selectedFrames(s).map((f) => bakeTransformed(f.png, f.transform, cellRef.current)),
+              selectedFrames(s).map((f) => bakeTransformed(f.png, f.transform, cellRef.current, pad)),
             ),
           })),
         ),

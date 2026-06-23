@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { useI18n } from "../i18n";
 import { FrameItem, FrameTransform } from "../types";
-import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform } from "../lib/frameTransform";
+import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform, framePad } from "../lib/frameTransform";
 
 interface IProps {
   items: FrameItem[];
@@ -44,25 +44,33 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const k = VIEW / cellSize;
+    // The on-screen canvas shows the padded working area (cellSize + 2*pad); the original
+    // cell is drawn as an inset guide so dragged-out content stays visible and editable.
+    const pad = framePad(cellSize);
+    const paddedCell = cellSize + 2 * pad;
+    const k = VIEW / paddedCell;
+    const cs = cellSize * k; // inner cell size in view px
+    const pk = pad * k;      // pad in view px
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, VIEW, VIEW);
-    // cell border + baseline guide
-    ctx.strokeStyle = "rgba(120,120,255,0.5)";
+    // padded working-area border (faint) + original cell guide (inset by pad)
+    ctx.strokeStyle = "rgba(120,120,255,0.25)";
     ctx.strokeRect(0.5, 0.5, VIEW - 1, VIEW - 1);
+    ctx.strokeStyle = "rgba(120,120,255,0.6)";
+    ctx.strokeRect(pk + 0.5, pk + 0.5, cs - 1, cs - 1);
     // onion ghosts (neighbors with their own stored transform)
     if (onion) {
       ctx.globalAlpha = 0.25;
       neighbors.forEach((i) => {
         const im = imgsRef.current[i];
-        if (im && im.complete) applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(items[i].transform, k), VIEW);
+        if (im && im.complete) applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(items[i].transform, k), cs, pk);
       });
       ctx.globalAlpha = 1;
     }
     // current frame with the draft transform (scaled into VIEW space)
     const im = imgsRef.current[index];
     if (im && im.complete) {
-      applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(draftRef.current, k), VIEW);
+      applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(draftRef.current, k), cs, pk);
     }
   }, [cellSize, index, items, neighbors, onion]);
 
@@ -76,7 +84,7 @@ export default function AlignModal({ items, index, cellSize, onSave, onClose }: 
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragRef.current) return;
-    const k = cellSize / VIEW; // view px → cell px
+    const k = (cellSize + 2 * framePad(cellSize)) / VIEW; // view px → content px (padded canvas)
     const ndx = draftRef.current.dx + (e.clientX - dragRef.current.x) * k;
     const ndy = draftRef.current.dy + (e.clientY - dragRef.current.y) * k;
     dragRef.current = { x: e.clientX, y: e.clientY };

@@ -3,7 +3,7 @@ import { Pause, Play, RotateCcw } from "lucide-react";
 import { useI18n } from "../i18n";
 import { Button } from "./ui/button";
 import { FrameTransform } from "../types";
-import { applyTransform } from "../lib/frameTransform";
+import { applyTransform, framePad } from "../lib/frameTransform";
 
 interface IProps {
   frames: string[]; // List of dataURLs (reflects selection/ordering)
@@ -101,14 +101,18 @@ export default function AnimPlayer({ frames, fps, loop, cellSize, transforms }: 
       if (!img || !img.naturalWidth) return;
       const w = img.naturalWidth;
       const h = img.naturalHeight;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      // Render into the padded working canvas so content dragged past the cell edge
+      // shows the same framing the export keeps (WYSIWYG with the Align modal).
+      const pad = framePad(w);
+      const size = w + 2 * pad;
+      if (canvas.width !== size || canvas.height !== size) {
+        canvas.width = size;
+        canvas.height = size;
       }
       const ctx = canvas.getContext("2d")!;
       ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, w, h);
-      applyTransform(ctx, img, w, h, transformsRef.current?.[idx], w);
+      ctx.clearRect(0, 0, size, size);
+      applyTransform(ctx, img, w, h, transformsRef.current?.[idx], w, pad);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);

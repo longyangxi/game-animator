@@ -3,7 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, Layout
 import { DirectionInfo, FrameTransform, StateDef, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
 import AlignModal from "./AlignModal";
-import { applyTransform, isIdentity } from "../lib/frameTransform";
+import { applyTransform, isIdentity, framePad } from "../lib/frameTransform";
 import { composeStateLabel, directionName } from "../i18n/catalog";
 import AnimPlayer from "./AnimPlayer";
 import DirectionGrid from "./DirectionGrid";
@@ -316,9 +316,13 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
       );
       if (cancelled) return;
 
+      // Compose the preview atlas at the padded cell size so it matches the exported sheet
+      // (which keeps content dragged past the original cell edge).
+      const pad = framePad(cellSize);
+      const pcell = cellSize + 2 * pad;
       const maxFrames = Math.max(1, ...rows.map((r) => r.imgs.length));
-      const w = maxFrames * cellSize;
-      const h = rows.length * cellSize;
+      const w = maxFrames * pcell;
+      const h = rows.length * pcell;
       canvas.width = w;
       canvas.height = h;
       setDims({ w, h });
@@ -329,8 +333,8 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
         row.imgs.forEach((cell, ci) => {
           if (!cell.img.naturalWidth) return;
           ctx.save();
-          ctx.translate(ci * cellSize, ri * cellSize);
-          applyTransform(ctx, cell.img, cell.img.width, cell.img.height, cell.transform, cellSize);
+          ctx.translate(ci * pcell, ri * pcell);
+          applyTransform(ctx, cell.img, cell.img.width, cell.img.height, cell.transform, cellSize, pad);
           ctx.restore();
         });
       });
@@ -358,7 +362,7 @@ function AtlasView({ states, cellSize, onExport }: { states: StateDef[]; cellSiz
       <div className="row">
         <div className="atlas-meta">
           <span>{t("sheet_size", { w: dims.w, h: dims.h })}</span>
-          <span>{t("cell", { n: cellSize })}</span>
+          <span>{t("cell", { n: cellSize + 2 * framePad(cellSize) })}</span>
           <span>{t("rows_states", { n: states.length })}</span>
         </div>
         <span className="spacer" />
