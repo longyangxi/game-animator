@@ -124,11 +124,11 @@ export default function SettingsModal({ settings, onClose, onSaved }: IProps) {
         </div>
 
         <Tabs value={tab} onValueChange={switchTab}>
-          <TabsList>
+          <TabsList className="gap-px p-px">
             {PROVIDERS.map((p) => (
-              <TabsTrigger key={p.key} value={p.key}>
+              <TabsTrigger key={p.key} value={p.key} className="px-1 py-1 text-[11px]">
                 {p.label}
-                {settings.providers?.[p.key]?.hasKey && <span className="ml-1 text-success">●</span>}
+                {settings.providers?.[p.key]?.hasKey && <span className="ml-0.5 text-[10px] text-success">●</span>}
               </TabsTrigger>
             ))}
           </TabsList>
