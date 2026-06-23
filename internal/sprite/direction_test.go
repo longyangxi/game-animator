@@ -27,7 +27,7 @@ func TestDirectionsMetadata(t *testing.T) {
 		grid[[2]int{d.Row, d.Col}] = true
 		if d.MirrorOf == "" {
 			gen++
-			if FacingPromptSection(d.Key) == "" {
+			if FacingPromptSection(d.Key, "") == "" {
 				t.Errorf("AI-generated direction %s has no prompt instruction", d.Key)
 			}
 		} else {
@@ -62,13 +62,13 @@ func TestIsBackFacing(t *testing.T) {
 }
 
 func TestFacingPromptSection(t *testing.T) {
-	if FacingPromptSection("") != "" {
+	if FacingPromptSection("", "") != "" {
 		t.Error("an empty direction must give an empty instruction")
 	}
-	if FacingPromptSection("west") != "" {
+	if FacingPromptSection("west", "") != "" {
 		t.Error("a mirror direction (west) must have no AI prompt")
 	}
-	sec := FacingPromptSection("north")
+	sec := FacingPromptSection("north", "")
 	if !strings.Contains(sec, "back view") || !strings.Contains(sec, "Facing direction lock") {
 		t.Errorf("the north instruction lacks the back view lock: %q", sec)
 	}
@@ -76,12 +76,12 @@ func TestFacingPromptSection(t *testing.T) {
 
 func TestBuildStripPromptIncludesFacing(t *testing.T) {
 	spec := StateSpec{Name: "walk", Frames: 6, FPS: 10, Loop: true, Action: "walking", Facing: "east"}
-	p := BuildStripPrompt("a knight", StylePresets["pixel"], spec, "")
+	p := BuildStripPrompt("a knight", StylePresets["pixel"], spec, "", "")
 	if !strings.Contains(p, "Facing direction lock") || !strings.Contains(p, "right-side profile") {
 		t.Error("the strip prompt must include the direction lock section")
 	}
 	spec.Facing = ""
-	p = BuildStripPrompt("a knight", StylePresets["pixel"], spec, "")
+	p = BuildStripPrompt("a knight", StylePresets["pixel"], spec, "", "")
 	if strings.Contains(p, "Facing direction lock") {
 		t.Error("when no direction is specified there must be no direction lock section")
 	}

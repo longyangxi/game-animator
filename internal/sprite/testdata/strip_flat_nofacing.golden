@@ -1,0 +1,50 @@
+Draw exactly 5 game-sprite poses of one character for the "attack" animation, laid out in a grid of 3 columns by 2 rows, read left to right then top to bottom (pose 1 top-left, the next finishing the top row, then continuing on the second row). This is raw sprite art, not a photo or a film — draw only the character poses on a flat background.
+
+Subject lock (top priority):
+- The attached image is the canonical character. Match it exactly across every pose: face, hairstyle, build, outfit, accessories.
+- Palette is binding. Re-sample each region's hue, saturation and value from the reference — skin, hair, every garment, every piece of gear. Do not re-tint, re-light, brighten, darken, or substitute a similar shade.
+- Hold one fixed camera and facing. The figure never rotates, mirrors, ages, or restyles between poses — only the body moves.
+
+Subject notes: a knight.
+
+Render contract (obey strictly): true low-resolution pixel-art game sprite, like a 32-64px sprite enlarged on the canvas, chunky readable silhouette, clean dark 1px outline, visible square pixel blocks, grid-aligned hard pixel edges, limited shared palette, solid tone clusters, flat color shading with at most one highlight step and one shadow step, simple readable face and clearly separated limbs. Never use painterly rendering, smooth gradients, airbrush shading, glossy lighting, anti-aliased fine detail, high-definition pixel art, fine-grained pixel art, anime illustration, concept art, or 3D rendering.
+
+Game-sprite design contract:
+- Interpret the subject as a game-ready character sprite, not an illustration, poster, sticker, mascot logo, or concept-art render.
+- Preserve the subject's identity through a strong silhouette, hairstyle, outfit shapes, accessories, weapon or signature prop, and dominant color blocks.
+- Simplify anatomy into readable sprite shapes: compact torso, clear head shape, simple arms and legs, minimal joint detail, no tiny anatomy rendering.
+- Hair, clothing layers, capes, hats, weapons and accessories should read as distinct hard-edged pixel shapes, not detailed painted textures.
+- Keep the face simple at sprite scale: readable eyes and mouth, minimal facial detail, no realistic nose or painted skin texture.
+
+Pixel rendering contract:
+- The image must look like a 32-64px game sprite enlarged to the canvas, not newly painted at high resolution.
+- Use chunky square pixel blocks, clean 1px outline, solid tone clusters, limited palette, minimal two-step flat shading.
+- No dithering, no smooth gradients, no soft shadow, no blur, no airbrush, no texture, no fine hair strands, no tiny jewelry detail that would vanish at 64px.
+- Every important shape must remain readable when shrunk to a thumbnail: silhouette first, details second.
+
+Movement: melee attack.
+Choreography: Melee attack: wind-up with body coiled back, powerful strike at full extension, follow-through, recovery to ready stance. The strike frame is the most extreme pose.
+Treat the 5 poses as evenly timed beats of one continuous motion — pose k is phase k of 5, and neighbours read as smooth in-betweens, never unrelated stances.
+It plays once: give it a clear start, peak, and settle.
+
+Grid layout:
+- Arrange exactly 5 poses in a clean 3-column by 2-row grid, read left to right then top to bottom — 5 poses, no more and no fewer. Count them before finishing. The bottom-right cell has no pose — leave it as empty flat background.
+- Treat each grid slot as its own cell with the pose centered inside it. Every pose is the SAME size at one shared scale, each filling about 70-85% of its cell. No pose may be noticeably smaller, larger, or set further back than the others.
+- Leave a generous band of the flat keying background BETWEEN ROWS and BETWEEN COLUMNS, wide enough that each cell is clearly separate. Nothing — not a blade, shield, limb, or trailing effect — may cross into a neighbouring cell or the gap.
+- Each pose is ONE whole, connected body. Never split a body into separate pieces, and never let two poses touch, overlap, or merge.
+- Keep each pose's whole reach — weapon swing, extended limbs, shield — INSIDE its own cell. If a swing would leave the cell, angle or foreshorten it so its tip stays within the cell.
+- Within each row, keep all poses standing on one common ground line, unless the action leaves the ground (a jump).
+
+Keying canvas (the renderer mattes this away — obey exactly):
+- Fill the ENTIRE background, edge to edge, with pure keying magenta (#FF00FF), perfectly uniform edge to edge — a single flat color touching all four image borders. No gradient, texture, scenery, floor, panel, frame, or border of any kind.
+- The subject must avoid magenta, pink and purple entirely — clothing, props, highlights and effects included — so the keyer never eats part of the character.
+- Drop every shadow and contact patch; the ground is implied, never painted.
+
+Reject (these break automatic extraction):
+- ANY frame, border, or decoration around the image or around a pose: no film strip, no sprocket holes or perforations, no photo/polaroid frame, no panel dividers, no outline box, no vignette. The background reaches every edge unbroken.
+- Motion garnish — streaks, speed lines, blur, after-images, arcs, swooshes, trails.
+- Free-floating bits — sparkles, stars, dust, smoke puffs, icons, symbols, or any mark not fused to the body.
+- Text, numbers, captions, grids, rulers, speech or thought bubbles, UI, watermarks.
+- Any pose that is clipped by the edge, or whose pixels bridge into the neighbouring pose.
+- Favor changes of pose, weight and expression over decoration; any effect must be opaque, hard-edged, and fused to the body.
+- Keep every pose legible at thumbnail size: bold silhouette, clear limbs, no detail that vanishes when shrunk.

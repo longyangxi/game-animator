@@ -99,17 +99,21 @@ var facingDescs = map[string]facingDesc{
 
 // FacingPromptSection builds the direction-lock instruction to insert into the strip prompt.
 // Returns an empty string for an unknown direction.
-func FacingPromptSection(key string) string {
+func FacingPromptSection(key, perspective string) string {
 	d, ok := facingDescs[key]
 	if !ok {
 		return ""
 	}
-	return "Facing direction lock (overrides any other facing or view instruction in this prompt):\n" +
+	s := "Facing direction lock (overrides any other facing or view instruction in this prompt):\n" +
 		"- Required view: " + d.view + " — " + d.camera + ".\n" +
 		"- Body orientation: " + d.body + ".\n" +
 		"- Visibility: " + d.visibility + ".\n" +
 		"- The attached reference image shows this character from the front; redraw the IDENTICAL character (same hair, outfit, colors, proportions) rotated to this view.\n" +
 		"- Every frame in the strip must use this exact same viewing angle. Never drift back toward a front view and never mirror the character between frames.\n"
+	if isIso(perspective) {
+		s += "- Isometric tilt: on top of the facing above, view from a fixed high three-quarter camera tilted down about 35 degrees — head and shoulder tops visible, figure on an implied isometric ground plane, the same downward tilt in every frame.\n"
+	}
+	return s
 }
 
 // MirrorNRGBA returns a new horizontally-flipped copy of the image (used to generate the 8-direction mirror pairs).

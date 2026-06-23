@@ -293,6 +293,7 @@ type GenerateCharacterArgs struct {
 	Description string `json:"description"`
 	StyleKey    string `json:"styleKey"`
 	StyleCustom string `json:"styleCustom"`
+	Perspective string `json:"perspective"` // "" / "flat" = 2D, "iso" = 2.5D
 }
 
 // GenerateCharacter generates a base character image from a description alone.
@@ -301,7 +302,7 @@ func (a *App) GenerateCharacter(args GenerateCharacterArgs) (string, error) {
 		return "", errors.New("please enter a character description")
 	}
 	style := sprite.ResolveStyle(args.StyleKey, args.StyleCustom)
-	prompt := sprite.BuildCharacterPrompt(args.Description, style)
+	prompt := sprite.BuildCharacterPrompt(args.Description, style, args.Perspective)
 
 	p, err := a.provider()
 	if err != nil {
@@ -343,6 +344,7 @@ type GenerateStateArgs struct {
 	Feedback    string           `json:"feedback"`
 	RefStrip    string           `json:"refStrip"` // front (south) strip dataURL — used as motion reference when generating directional sets
 	State       sprite.StateSpec `json:"state"`
+	Perspective string           `json:"perspective"` // "" / "flat" = 2D, "iso" = 2.5D
 }
 
 // StateResult is the result of a state generation.
@@ -413,7 +415,7 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 	var lastErr error
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		prompt := sprite.BuildStripPrompt(args.Description, style, args.State, feedback)
+		prompt := sprite.BuildStripPrompt(args.Description, style, args.State, feedback, args.Perspective)
 		if len(refs) > 1 {
 			prompt += "\nMotion reference: the second attached image is the FRONT-view animation strip of this same character performing this exact action. Reproduce the same motion timing and pose phases frame by frame, but viewed from the required facing direction above.\n"
 		}

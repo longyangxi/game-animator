@@ -64,6 +64,7 @@ export interface CharacterDef {
   description: string;
   styleKey: string;
   styleCustom: string;
+  perspective: "flat" | "iso"; // 2D (default) or 2.5D isometric
 }
 
 export interface StatePreset {

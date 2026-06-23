@@ -44,7 +44,7 @@ func TestPipelineLive(t *testing.T) {
 	var frames []*image.NRGBA
 	var insp InspectResult
 	for attempt := 1; attempt <= 3; attempt++ {
-		prompt := BuildStripPrompt(desc, style, spec, feedback)
+		prompt := BuildStripPrompt(desc, style, spec, feedback, "")
 		raw, err := c.GenerateImage(ctx, prompt, nil, AspectForFrames(expected))
 		if err != nil {
 			t.Fatalf("[attempt %d] strip generation failed: %v", attempt, err)

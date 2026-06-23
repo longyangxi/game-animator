@@ -5,6 +5,30 @@ import (
 	"strings"
 )
 
+// isIso reports whether the perspective selects the 2.5D isometric view.
+// Empty string and "flat" both mean the default 2D view.
+func isIso(perspective string) bool {
+	return strings.EqualFold(strings.TrimSpace(perspective), "iso")
+}
+
+// perspectiveCharacterBullet returns the framing bullet for the base-character prompt.
+// The flat branch returns the exact text the prompt used before this parameter existed.
+func perspectiveCharacterBullet(perspective string) string {
+	if isIso(perspective) {
+		return "- Classic 2.5D isometric / top-down three-quarter game-sprite view: a fixed high camera tilted down about 35 degrees so the tops of the head and shoulders read and the figure stands on an implied isometric ground plane. Keep it orthographic pixel-isometric — one flat consistent scale, no vanishing-point perspective, no photographic foreshortening, no 3D render.\n"
+	}
+	return "- Almost flat 2D game-sprite view; avoid dramatic perspective, foreshortening, cinematic camera angles, and illustration-style posing.\n"
+}
+
+// perspectiveStripClause returns an extra view-lock clause for the per-state strip prompt.
+// It is empty for flat so the flat strip prompt is unchanged.
+func perspectiveStripClause(perspective string) string {
+	if isIso(perspective) {
+		return "Isometric view lock: render every pose in a classic 2.5D isometric / top-down three-quarter view — a fixed high camera tilted down about 35 degrees, orthographic pixel-isometric, no vanishing-point perspective and no 3D render. Hold this exact downward tilt in every pose.\n\n"
+	}
+	return ""
+}
+
 // StylePresets is the set of selectable style contracts.
 var StylePresets = map[string]string{
 	"pixel": "true low-resolution pixel-art game sprite, like a 32-64px sprite enlarged on the canvas, " +
@@ -95,7 +119,7 @@ func rejectClause() string {
 }
 
 // BuildCharacterPrompt builds the text-description → base-character image generation prompt.
-func BuildCharacterPrompt(description, style string) string {
+func BuildCharacterPrompt(description, style, perspective string) string {
 	var b strings.Builder
 	b.WriteString("Produce one complete game-character reference sprite in a relaxed player-avatar standing pose.\n\n")
 	fmt.Fprintf(&b, "Subject: %s.\n\n", strings.TrimSpace(description))
@@ -108,7 +132,7 @@ func BuildCharacterPrompt(description, style string) string {
 	b.WriteString("Framing:\n")
 	b.WriteString("- A single figure, head to feet, vertically centered, occupying about three quarters of the canvas height with generous breathing room on every side.\n")
 	b.WriteString("- Idle standing sprite pose: feet level, weight balanced, arms relaxed but readable.\n")
-	b.WriteString("- Almost flat 2D game-sprite view; avoid dramatic perspective, foreshortening, cinematic camera angles, and illustration-style posing.\n")
+	b.WriteString(perspectiveCharacterBullet(perspective))
 	b.WriteString("- One continuous silhouette — nothing detached, no trailing accessories or particles.\n\n")
 	b.WriteString(canvasContract())
 	b.WriteString("\n")
@@ -117,7 +141,7 @@ func BuildCharacterPrompt(description, style string) string {
 }
 
 // BuildStripPrompt builds the per-state horizontal strip generation prompt.
-func BuildStripPrompt(description, style string, spec StateSpec, feedback string) string {
+func BuildStripPrompt(description, style string, spec StateSpec, feedback, perspective string) string {
 	var b strings.Builder
 	n := spec.Frames
 	rows, cols := GridForFrames(n)
@@ -142,7 +166,9 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback string
 		b.WriteString("\n")
 	}
 
-	if sec := FacingPromptSection(spec.Facing); sec != "" {
+	b.WriteString(perspectiveStripClause(perspective))
+
+	if sec := FacingPromptSection(spec.Facing, perspective); sec != "" {
 		b.WriteString(sec)
 		b.WriteString("\n")
 	}

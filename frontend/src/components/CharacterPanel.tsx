@@ -56,6 +56,7 @@ export default function CharacterPanel({ character, cellSize, busy, onChange, on
         description: character.description,
         styleKey: character.styleKey,
         styleCustom: character.styleCustom,
+        perspective: character.perspective,
       } as any);
       if (dataURL) set({ image: dataURL });
     } catch (e) {
@@ -164,6 +165,20 @@ export default function CharacterPanel({ character, cellSize, busy, onChange, on
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="field">
+        <Label>{t("view_label")}</Label>
+        <Select value={character.perspective} onValueChange={(v) => set({ perspective: v as "flat" | "iso" })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="flat">{t("view_flat")}</SelectItem>
+            <SelectItem value="iso">{t("view_iso")}</SelectItem>
+          </SelectContent>
+        </Select>
+        {character.perspective === "iso" && <p className="hint">{t("view_hint")}</p>}
       </div>
 
       {character.styleKey === "custom" && (

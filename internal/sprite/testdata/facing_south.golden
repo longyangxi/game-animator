@@ -1,0 +1,6 @@
+Facing direction lock (overrides any other facing or view instruction in this prompt):
+- Required view: front view — camera directly in front, at eye level.
+- Body orientation: the character faces the viewer directly.
+- Visibility: full face visible (eyes and mouth, minimal nose detail); both arms and both legs fully visible, symmetric.
+- The attached reference image shows this character from the front; redraw the IDENTICAL character (same hair, outfit, colors, proportions) rotated to this view.
+- Every frame in the strip must use this exact same viewing angle. Never drift back toward a front view and never mirror the character between frames.

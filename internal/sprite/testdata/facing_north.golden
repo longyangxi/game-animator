@@ -1,0 +1,6 @@
+Facing direction lock (overrides any other facing or view instruction in this prompt):
+- Required view: back view — camera positioned directly behind the character.
+- Body orientation: the character faces away from the viewer.
+- Visibility: face completely hidden, only the back of the head and hair visible; back of the outfit, both arms and legs seen from behind.
+- The attached reference image shows this character from the front; redraw the IDENTICAL character (same hair, outfit, colors, proportions) rotated to this view.
+- Every frame in the strip must use this exact same viewing angle. Never drift back toward a front view and never mirror the character between frames.

@@ -45,6 +45,7 @@ export default function App() {
     description: "",
     styleKey: "pixel",
     styleCustom: "",
+    perspective: "flat",
   });
   const [cellSize, setCellSize] = useState(256);
   const [padFrac, setPadFrac] = useState(0); // working margin per side (fraction of cell); 0 = no margin
@@ -99,6 +100,7 @@ export default function App() {
               description: s.character.description ?? "",
               styleKey: s.character.styleKey ?? "pixel",
               styleCustom: s.character.styleCustom ?? "",
+              perspective: s.character.perspective ?? "flat",
             });
           }
           if (typeof s?.cellSize === "number") setCellSize(s.cellSize);
@@ -226,6 +228,7 @@ export default function App() {
         description: ch.description,
         styleKey: ch.styleKey,
         styleCustom: ch.styleCustom,
+        perspective: ch.perspective,
         cellSize: cellRef.current,
         safeMargin: 0,
         feedback,
@@ -489,7 +492,7 @@ export default function App() {
 
   const resetProject = async () => {
     setConfirmNew(false);
-    setCharacter({ image: null, name: "", description: "", styleKey: "pixel", styleCustom: "" });
+    setCharacter({ image: null, name: "", description: "", styleKey: "pixel", styleCustom: "", perspective: "flat" });
     setStates([]);
     setSelectedId(null);
     setCellSize(256);
