@@ -17,12 +17,13 @@ type ProviderCfg struct {
 
 // Settings holds the user settings.
 type Settings struct {
-	Provider   string      `json:"provider"` // gemini | openai | openrouter | fal | byteplus
+	Provider   string      `json:"provider"` // gemini | openai | openrouter | fal | byteplus | replicate
 	Gemini     ProviderCfg `json:"gemini"`
 	OpenAI     ProviderCfg `json:"openai"`
 	OpenRouter ProviderCfg `json:"openrouter"`
 	Fal        ProviderCfg `json:"fal"`
 	BytePlus   ProviderCfg `json:"byteplus"`
+	Replicate  ProviderCfg `json:"replicate"`
 
 	// Legacy fields (for migration from v1).
 	LegacyAPIKey string `json:"apiKey,omitempty"`
@@ -40,6 +41,8 @@ func (s *Settings) Cfg(provider string) *ProviderCfg {
 		return &s.Fal
 	case "byteplus":
 		return &s.BytePlus
+	case "replicate":
+		return &s.Replicate
 	default:
 		return &s.Gemini
 	}
@@ -107,6 +110,9 @@ func Load() Settings {
 	if s.BytePlus.APIKey == "" {
 		s.BytePlus.APIKey = firstNonEmpty(env["BYTEPLUS_API_KEY"], env["ARK_API_KEY"])
 	}
+	if s.Replicate.APIKey == "" {
+		s.Replicate.APIKey = firstNonEmpty(env["REPLICATE_API_TOKEN"], env["REPLICATE_API_KEY"])
+	}
 
 	// Auto-select the active provider: the first provider that has a key.
 	if s.Provider == "" {
@@ -121,6 +127,8 @@ func Load() Settings {
 			s.Provider = "fal"
 		case s.BytePlus.APIKey != "":
 			s.Provider = "byteplus"
+		case s.Replicate.APIKey != "":
+			s.Provider = "replicate"
 		default:
 			s.Provider = "gemini"
 		}

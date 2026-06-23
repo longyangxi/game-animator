@@ -53,6 +53,7 @@ const en: Record<string, string> = {
   help_openrouter: "Enter the key from openrouter.ai → Keys.",
   help_fal: "Enter the key from your fal.ai dashboard. (FAL_KEY in .env is auto-detected.)",
   help_byteplus: "Enter the API key from the BytePlus ModelArk console. (BYTEPLUS_API_KEY / ARK_API_KEY in .env are auto-detected.)",
+  help_replicate: "Enter your Replicate API token (replicate.com → Account → API tokens). Recommended: google/nano-banana-2 (quality) or google/nano-banana (cheaper, for testing). (REPLICATE_API_TOKEN in .env is auto-detected.)",
 
   char_style: "Character & Style",
   upload_image: "Upload image",

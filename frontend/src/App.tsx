@@ -30,6 +30,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   openrouter: "OpenRouter",
   fal: "fal.ai",
   byteplus: "BytePlus",
+  replicate: "Replicate",
 };
 
 export default function App() {

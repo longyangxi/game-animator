@@ -53,6 +53,7 @@ const zh: Record<string, string> = {
   help_openrouter: "请输入在 openrouter.ai → Keys 获取的密钥。",
   help_fal: "请输入 fal.ai 控制台获取的密钥。(.env 中的 FAL_KEY 也会自动识别)",
   help_byteplus: "请输入 BytePlus ModelArk 控制台获取的 API 密钥。(.env 中的 BYTEPLUS_API_KEY / ARK_API_KEY 也会自动识别)",
+  help_replicate: "请输入 Replicate API token（replicate.com → Account → API tokens）。推荐 google/nano-banana-2（质量优）或 google/nano-banana（更便宜，适合测试）。(.env 中的 REPLICATE_API_TOKEN 也会自动识别)",
 
   char_style: "角色与风格",
   upload_image: "上传图片",

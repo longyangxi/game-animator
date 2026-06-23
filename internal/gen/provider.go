@@ -17,10 +17,11 @@ const (
 	ProviderOpenRouter = "openrouter"
 	ProviderFal        = "fal"
 	ProviderBytePlus   = "byteplus"
+	ProviderReplicate  = "replicate"
 )
 
 // SupportedProviders is the list of supported provider identifiers (in UI display order).
-var SupportedProviders = []string{ProviderGemini, ProviderOpenAI, ProviderOpenRouter, ProviderFal, ProviderBytePlus}
+var SupportedProviders = []string{ProviderGemini, ProviderOpenAI, ProviderOpenRouter, ProviderFal, ProviderBytePlus, ProviderReplicate}
 
 // modelCatalog is the list of selectable image models per provider (newest model first).
 var modelCatalog = map[string][]string{
@@ -51,6 +52,11 @@ var modelCatalog = map[string][]string{
 		"seedream-3-0-t2i-250415", // Seedream 3.0
 		"seededit-3-0-i2i-250628", // SeedEdit 3.0 (image editing)
 	},
+	ProviderReplicate: {
+		"google/nano-banana-2", // Gemini image, best identity for the strip workflow (default)
+		"google/nano-banana",   // Gemini 2.5 Flash image — cheaper, for testing
+		"prunaai/z-image-turbo", // ultra-cheap SDXL txt2img — pipeline checks only (no identity/wide strip)
+	},
 }
 
 // ModelsFor returns the list of selectable models offered by a provider (newest model first).
@@ -80,6 +86,8 @@ func DefaultModelFor(provider string) string {
 		return "fal-ai/nano-banana-pro"
 	case ProviderBytePlus:
 		return "seedream-4-0-250828"
+	case ProviderReplicate:
+		return "google/nano-banana-2"
 	default:
 		return DefaultModel // gemini-3-pro-image (Nano Banana Pro)
 	}
@@ -96,6 +104,8 @@ func ProviderLabel(provider string) string {
 		return "fal.ai"
 	case ProviderBytePlus:
 		return "BytePlus"
+	case ProviderReplicate:
+		return "Replicate"
 	default:
 		return "Gemini"
 	}
@@ -117,6 +127,8 @@ func New(provider, apiKey, model string) (Provider, error) {
 		return NewFal(apiKey, model), nil
 	case ProviderBytePlus:
 		return NewBytePlus(apiKey, model), nil
+	case ProviderReplicate:
+		return NewReplicate(apiKey, model), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}

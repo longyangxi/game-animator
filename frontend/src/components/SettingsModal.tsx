@@ -33,6 +33,7 @@ const PROVIDERS: { key: string; label: string; placeholder: string }[] = [
   { key: "openrouter", label: "OpenRouter", placeholder: "sk-or-..." },
   { key: "fal", label: "fal.ai", placeholder: "key_id:key_secret" },
   { key: "byteplus", label: "BytePlus", placeholder: "ark-..." },
+  { key: "replicate", label: "Replicate", placeholder: "r8_..." },
 ];
 
 // Multi-provider settings modal (shadcn Dialog)

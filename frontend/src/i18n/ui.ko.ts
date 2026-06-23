@@ -53,6 +53,7 @@ const ko: Record<string, string> = {
   help_openrouter: "openrouter.ai → Keys에서 발급받은 키를 입력하세요.",
   help_fal: "fal.ai 대시보드에서 발급받은 키를 입력하세요. (.env의 FAL_KEY도 자동 인식)",
   help_byteplus: "BytePlus ModelArk 콘솔에서 발급받은 API 키를 입력하세요. (.env의 BYTEPLUS_API_KEY / ARK_API_KEY도 자동 인식)",
+  help_replicate: "Replicate API 토큰을 입력하세요 (replicate.com → Account → API tokens). 추천: google/nano-banana-2(고품질) 또는 google/nano-banana(저렴, 테스트용). (.env의 REPLICATE_API_TOKEN도 자동 인식)",
 
   char_style: "캐릭터 & 스타일",
   upload_image: "이미지 업로드",
