@@ -123,6 +123,7 @@ const es: Record<string, string> = {
   mirror_result: "Esta dirección es la dirección {dir} reflejada horizontalmente",
   mirror_regen_hint: "Regenera la dirección {dir} y luego pulsa regenerar aquí para aplicarlo.",
   remirror: "Reflejar de nuevo",
+  warn_count: "{n} posible(s) problema(s) detectado(s) — haz clic para ver",
   refine_title: "¿No te convence? Regenera con comentarios",
   feedback_ph: "ej.: mayor movimiento de brazos, no cortes las piernas, mantén el color del sombrero",
   frame_exclude_hint: "Haz clic en los fotogramas no deseados de arriba para excluirlos.",

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Compass, FlipHorizontal2, Loader2, Plus, Sparkles, X, Zap } from "lucide-react";
+import { AlertTriangle, Compass, FlipHorizontal2, Loader2, Plus, Sparkles, X, Zap } from "lucide-react";
 import { DirectionInfo, PresetInfo, StateDef, presetInfoToState, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
 import { composeStateLabel, directionName } from "../i18n/catalog";
@@ -141,6 +141,11 @@ export default function StatesPanel({
                   </span>
                 )}
                 <span className="spacer" />
+                {s.status === "done" && s.warnings.length > 0 && (
+                  <span className="state-warn-icon" title={s.warnings.join("\n")}>
+                    <AlertTriangle size={13} />
+                  </span>
+                )}
                 {s.status === "done" && <span className="state-sub">{t("n_frames", { n: sel })}</span>}
                 <Button
                   variant="destructive-ghost"
@@ -270,11 +275,6 @@ export default function StatesPanel({
               )}
 
               {s.status === "error" && s.error && <div className="state-error">{s.error}</div>}
-              {s.warnings.map((w, i) => (
-                <div key={i} className="state-warn">
-                  {w}
-                </div>
-              ))}
             </div>
           );
         })}

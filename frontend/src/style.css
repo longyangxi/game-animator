@@ -126,7 +126,7 @@
   .state-thumbs { display: flex; gap: 3px; margin-top: 8px; overflow: hidden; border-radius: 6px; padding: 3px; }
   .state-thumbs img { width: 30px; height: 30px; object-fit: contain; border-radius: 3px; }
   .state-error { margin-top: 6px; font-size: 11px; color: hsl(var(--destructive)); background: hsl(var(--destructive) / 0.07); border-radius: 6px; padding: 5px 8px; }
-  .state-warn { margin-top: 4px; font-size: 11px; color: hsl(28 80% 38%); background: hsl(var(--warning) / 0.1); border-radius: 6px; padding: 4px 8px; }
+  .state-warn-icon { display: inline-flex; align-items: center; color: hsl(37 91% 50%); flex-shrink: 0; cursor: help; }
 
   .progress-pill { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: hsl(var(--foreground)); background: #fff; padding: 4px 6px 4px 12px; border-radius: 20px; border: 1px solid hsl(var(--border)); box-shadow: var(--shadow); max-width: 480px; overflow: hidden; white-space: nowrap; }
   .pp-cancel { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: default; color: hsl(var(--muted-foreground)); background: hsl(var(--muted)); border: none; outline: none; padding: 0; transition: background 0.15s, color 0.15s; flex-shrink: 0; }
@@ -141,7 +141,11 @@
 /* SECTION:preview */
 @layer components {
   .preview-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
-  .preview-warn { border-radius: 8px; border: 1px solid hsl(37 91% 55% / 0.3); background: hsl(37 91% 55% / 0.07); padding: 8px 12px; font-size: 11px; color: hsl(28 80% 30%); }
+  .preview-warn { border-radius: 8px; border: 1px solid hsl(37 91% 55% / 0.3); background: hsl(37 91% 55% / 0.07); font-size: 11px; color: hsl(28 80% 30%); overflow: hidden; }
+  .preview-warn .pw-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 7px 12px; background: none; border: none; color: hsl(28 80% 32%); font-size: 11px; font-weight: 500; cursor: default; text-align: left; }
+  .preview-warn .pw-chev { transition: transform 0.15s; opacity: 0.7; }
+  .preview-warn.open .pw-chev { transform: rotate(180deg); }
+  .preview-warn .pw-body { padding: 0 12px 8px 12px; display: flex; flex-direction: column; gap: 2px; }
 
   /* 8-direction set 3x3 grid */
   .dir-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; border-radius: 10px; border: 1px solid hsl(var(--border)); align-self: center; }

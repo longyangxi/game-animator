@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, LayoutGrid, Pencil, Package, RefreshCw, Wand2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, FlipHorizontal2, LayoutGrid, Pencil, Package, RefreshCw, Wand2 } from "lucide-react";
 import { DirectionInfo, FrameTransform, StateDef, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
 import AlignModal from "./AlignModal";
@@ -33,8 +33,12 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, p
   const [tab, setTab] = useState<ViewTab>("play");
   const [feedback, setFeedback] = useState("");
   const [alignIdx, setAlignIdx] = useState<number | null>(null);
+  const [warnOpen, setWarnOpen] = useState(false);
 
-  useEffect(() => setFeedback(state?.feedback ?? ""), [state?.id]);
+  useEffect(() => {
+    setFeedback(state?.feedback ?? "");
+    setWarnOpen(false);
+  }, [state?.id]);
 
   const doneStates = allStates.filter((s) => s.status === "done" && selectedFrames(s).length > 0);
 
@@ -103,10 +107,20 @@ export default function PreviewPanel({ state, allStates, directions, cellSize, p
 
       <div className="preview-body">
         {state.status === "done" && state.warnings.length > 0 && tab !== "atlas" && (
-          <div className="preview-warn">
-            {state.warnings.map((w, i) => (
-              <div key={i}>{w}</div>
-            ))}
+          <div className={`preview-warn ${warnOpen ? "open" : ""}`}>
+            <button className="pw-head" onClick={() => setWarnOpen((o) => !o)}>
+              <AlertTriangle size={13} />
+              <span>{t("warn_count", { n: state.warnings.length })}</span>
+              <span className="spacer" />
+              <ChevronDown size={13} className="pw-chev" />
+            </button>
+            {warnOpen && (
+              <div className="pw-body">
+                {state.warnings.map((w, i) => (
+                  <div key={i}>{w}</div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

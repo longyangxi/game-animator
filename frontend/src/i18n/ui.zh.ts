@@ -123,6 +123,7 @@ const zh: Record<string, string> = {
   mirror_result: "此方向是 {dir} 方向的左右镜像结果",
   mirror_regen_hint: "重新生成 {dir} 方向后，在此点击重新生成即可应用。",
   remirror: "重新镜像",
+  warn_count: "检测到 {n} 处可能的问题 · 点击查看",
   refine_title: "不满意？带上反馈重新生成",
   feedback_ph: "例如: 手臂动作更大些，别裁掉腿，保持帽子颜色",
   frame_exclude_hint: "点击上方不需要的帧即可排除。",

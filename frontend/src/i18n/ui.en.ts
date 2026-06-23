@@ -123,6 +123,7 @@ const en: Record<string, string> = {
   mirror_result: "This direction is the {dir} direction mirrored horizontally",
   mirror_regen_hint: "Regenerate the {dir} direction, then press regenerate here to apply it.",
   remirror: "Re-mirror",
+  warn_count: "{n} potential issue(s) detected — click to view",
   refine_title: "Not happy with it? Regenerate with feedback",
   feedback_ph: "e.g. bigger arm motion, don't cut off the legs, keep the hat color",
   frame_exclude_hint: "Click unwanted frames above to exclude them.",

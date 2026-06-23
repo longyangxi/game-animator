@@ -123,6 +123,7 @@ const ko: Record<string, string> = {
   mirror_result: "이 방향은 {dir} 방향을 좌우 반전한 결과입니다",
   mirror_regen_hint: "{dir} 방향을 다시 생성한 뒤 여기서 다시 생성을 누르면 반영됩니다.",
   remirror: "다시 미러링",
+  warn_count: "잠재적 문제 {n}건 감지됨 — 클릭하여 보기",
   refine_title: "마음에 들지 않나요? 피드백과 함께 다시 생성하세요",
   feedback_ph: "예: 팔 동작을 더 크게, 다리가 잘리지 않게, 모자 색을 유지해줘",
   frame_exclude_hint: "불필요한 프레임은 위에서 클릭해 제외할 수 있습니다.",
