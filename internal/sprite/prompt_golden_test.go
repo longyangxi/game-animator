@@ -77,4 +77,29 @@ func TestPromptIso(t *testing.T) {
 	if FacingPromptSection("south", "") == FacingPromptSection("south", "iso") {
 		t.Error("iso facing section must differ from flat")
 	}
+
+	// Iso strips flat side-view wording from preset action/choreography; flat keeps it.
+	walkSpec := StateSpec{Name: "walk", Frames: 6, FPS: 10, Loop: true, Action: "side-view walking cycle facing right", Facing: ""}
+	isoWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "iso")
+	if strings.Contains(isoWalk, "side-view") || strings.Contains(isoWalk, "facing right") {
+		t.Errorf("iso walk strip still carries flat side-view wording: %q", isoWalk)
+	}
+	flatWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "")
+	if !strings.Contains(flatWalk, "side-view") || !strings.Contains(flatWalk, "facing right") {
+		t.Error("flat walk strip must keep its original side-view wording unchanged")
+	}
+
+	// Iso strips the flat-camera phrasing from the directional facings; flat keeps it.
+	if strings.Contains(FacingPromptSection("south", "iso"), "at eye level") {
+		t.Error(`iso south facing must drop "at eye level"`)
+	}
+	if !strings.Contains(FacingPromptSection("south", ""), "at eye level") {
+		t.Error(`flat south facing must keep "at eye level"`)
+	}
+	if strings.Contains(FacingPromptSection("east", "iso"), "strictly 2D profile") {
+		t.Error(`iso east facing must drop "strictly 2D profile, no perspective rotation"`)
+	}
+	if !strings.Contains(FacingPromptSection("east", ""), "strictly 2D profile") {
+		t.Error(`flat east facing must keep "strictly 2D profile"`)
+	}
 }

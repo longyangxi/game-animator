@@ -29,6 +29,34 @@ func perspectiveStripClause(perspective string) string {
 	return ""
 }
 
+// isoFlatPhrases are flat-view-specific wordings baked into shared prompt text
+// (preset actions/choreography and the directional facing descriptions). They
+// describe an eye-level, side-on, head-on 2D camera and directly contradict the
+// isometric downward tilt, so they are stripped — but only in iso mode.
+var isoFlatPhrases = []string{
+	"side-view ", "side view ", "Side-view ", "Side view ",
+	" facing right", " facing left",
+	", at eye level",
+	"; strictly 2D profile, no perspective rotation",
+}
+
+// isoNeutralize removes flat-view phrasing that fights the isometric camera.
+// Callers invoke it ONLY when isIso is true; the flat path never touches the
+// text, so flat output stays byte-identical (locked by the golden tests).
+func isoNeutralize(s string) string {
+	for _, p := range isoFlatPhrases {
+		s = strings.ReplaceAll(s, p, "")
+	}
+	return s
+}
+
+// isoFacingTilt is the per-direction isometric tilt line appended to a facing
+// section in iso mode. Centralized here so all perspective wording lives in one
+// place; direction.go calls it.
+func isoFacingTilt() string {
+	return "- Isometric tilt: on top of the facing above, the camera looks DOWN at the character at about 35 degrees (not eye level) — tops of head, shoulders and feet visible, the body slightly foreshortened from above on an implied isometric ground plane, the same downward tilt in every frame.\n"
+}
+
 // StylePresets is the set of selectable style contracts.
 var StylePresets = map[string]string{
 	"pixel": "true low-resolution pixel-art game sprite, like a 32-64px sprite enlarged on the canvas, " +
@@ -181,8 +209,15 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback, persp
 	if action == "" {
 		action = spec.Name
 	}
+	hint := MotionHint(spec.Name)
+	if isIso(perspective) {
+		// Drop flat side-view phrasing (e.g. walk/run "side-view ... facing right")
+		// that would fight the isometric camera. Flat leaves both untouched.
+		action = isoNeutralize(action)
+		hint = isoNeutralize(hint)
+	}
 	fmt.Fprintf(&b, "Movement: %s.\n", action)
-	if hint := MotionHint(spec.Name); hint != "" {
+	if hint != "" {
 		fmt.Fprintf(&b, "Choreography: %s\n", hint)
 	}
 	fmt.Fprintf(&b, "Treat the %d poses as evenly timed beats of one continuous motion — pose k is phase k of %d, and neighbours read as smooth in-betweens, never unrelated stances.\n", n, n)

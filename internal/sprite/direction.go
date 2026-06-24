@@ -111,7 +111,10 @@ func FacingPromptSection(key, perspective string) string {
 		"- The attached reference image shows this character from the front; redraw the IDENTICAL character (same hair, outfit, colors, proportions) rotated to this view.\n" +
 		"- Every frame in the strip must use this exact same viewing angle. Never drift back toward a front view and never mirror the character between frames.\n"
 	if isIso(perspective) {
-		s += "- Isometric tilt: on top of the facing above, the camera looks DOWN at the character at about 35 degrees (not eye level) — tops of head, shoulders and feet visible, the body slightly foreshortened from above on an implied isometric ground plane, the same downward tilt in every frame.\n"
+		// Strip the flat-camera phrasing ("at eye level", "strictly 2D profile,
+		// no perspective rotation") that contradicts the isometric tilt, then add it.
+		s = isoNeutralize(s)
+		s += isoFacingTilt()
 	}
 	return s
 }
