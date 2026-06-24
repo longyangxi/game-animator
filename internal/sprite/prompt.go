@@ -29,22 +29,40 @@ func perspectiveStripClause(perspective string) string {
 	return ""
 }
 
-// isoFlatPhrases are flat-view-specific wordings baked into shared prompt text
-// (preset actions/choreography and the directional facing descriptions). They
-// describe an eye-level, side-on, head-on 2D camera and directly contradict the
-// isometric downward tilt, so they are stripped — but only in iso mode.
-var isoFlatPhrases = []string{
-	"side-view ", "side view ", "Side-view ", "Side view ",
-	" facing right", " facing left",
+// ViewToken is the single per-perspective view word substituted into preset
+// action and choreography text wherever the "{view}" placeholder appears. It is
+// the one place the camera view is named, so presets stay view-agnostic. The
+// flat value reproduces the wording presets used before the perspective toggle,
+// keeping 2D output byte-identical.
+func ViewToken(perspective string) string {
+	if isIso(perspective) {
+		return "top-down"
+	}
+	return "side-view"
+}
+
+// viewPlaceholder is the token presets use in place of a hardcoded view word.
+const viewPlaceholder = "{view}"
+
+// substituteView resolves the {view} placeholder in preset text for the given
+// perspective. It always runs; for flat it yields the original wording.
+func substituteView(s, perspective string) string {
+	return strings.ReplaceAll(s, viewPlaceholder, ViewToken(perspective))
+}
+
+// isoFacingFlatPhrases are flat-camera wordings baked into the directional
+// facing descriptions ("at eye level", a strict 2D profile) that contradict the
+// isometric downward tilt. They are stripped — but only in iso mode.
+var isoFacingFlatPhrases = []string{
 	", at eye level",
 	"; strictly 2D profile, no perspective rotation",
 }
 
-// isoNeutralize removes flat-view phrasing that fights the isometric camera.
+// isoNeutralize removes flat-camera phrasing from a directional facing section.
 // Callers invoke it ONLY when isIso is true; the flat path never touches the
 // text, so flat output stays byte-identical (locked by the golden tests).
 func isoNeutralize(s string) string {
-	for _, p := range isoFlatPhrases {
+	for _, p := range isoFacingFlatPhrases {
 		s = strings.ReplaceAll(s, p, "")
 	}
 	return s
@@ -210,12 +228,10 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback, persp
 		action = spec.Name
 	}
 	hint := MotionHint(spec.Name)
-	if isIso(perspective) {
-		// Drop flat side-view phrasing (e.g. walk/run "side-view ... facing right")
-		// that would fight the isometric camera. Flat leaves both untouched.
-		action = isoNeutralize(action)
-		hint = isoNeutralize(hint)
-	}
+	// Resolve the {view} placeholder (e.g. walk/run framing) to the perspective's
+	// view word. Always runs; for flat it reproduces the original wording.
+	action = substituteView(action, perspective)
+	hint = substituteView(hint, perspective)
 	fmt.Fprintf(&b, "Movement: %s.\n", action)
 	if hint != "" {
 		fmt.Fprintf(&b, "Choreography: %s\n", hint)

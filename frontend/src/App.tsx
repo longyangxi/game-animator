@@ -627,6 +627,7 @@ export default function App() {
             canGenerate={!!character.image && hasActiveKey(settings)}
             hasImage={!!character.image}
             busy={busy}
+            perspective={character.perspective}
             onStates={setStates}
             onSelect={setSelectedId}
             onGenerate={handleGenerate}

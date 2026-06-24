@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Check, Search } from "lucide-react";
-import { PresetInfo } from "../types";
+import { PresetInfo, resolveView } from "../types";
 import { useI18n } from "../i18n";
 import { presetLabel, categoryLabel } from "../i18n/catalog";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
@@ -9,12 +9,13 @@ import { Input } from "./ui/input";
 interface IProps {
   presets: PresetInfo[];
   usedNames: Set<string>;
+  perspective: "flat" | "iso";
   onAdd: (p: PresetInfo) => void;
   onClose: () => void;
 }
 
 // Preset picker that groups 100 situation keywords by category and lets you find them quickly via search.
-export default function PresetPicker({ presets, usedNames, onAdd, onClose }: IProps) {
+export default function PresetPicker({ presets, usedNames, perspective, onAdd, onClose }: IProps) {
   const { t, lang } = useI18n();
   const [query, setQuery] = useState("");
 
@@ -81,7 +82,7 @@ export default function PresetPicker({ presets, usedNames, onAdd, onClose }: IPr
                       key={p.name}
                       className="chip"
                       disabled={used}
-                      title={t("preset_tip", { action: p.action, frames: p.frames, fps: p.fps, loop: p.loop ? t("loop_suffix") : "" })}
+                      title={t("preset_tip", { action: resolveView(p.action, perspective), frames: p.frames, fps: p.fps, loop: p.loop ? t("loop_suffix") : "" })}
                       onClick={() => onAdd(p)}
                     >
                       {used ? <Check size={11} /> : "+"} {presetLabel(p.name, lang, p.label)}

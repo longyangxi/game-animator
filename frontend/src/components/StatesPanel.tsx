@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, Compass, FlipHorizontal2, Loader2, Plus, Sparkles, X, Zap } from "lucide-react";
-import { DirectionInfo, PresetInfo, StateDef, presetInfoToState, selectedFrames } from "../types";
+import { DirectionInfo, PresetInfo, StateDef, presetInfoToState, resolveView, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
 import { composeStateLabel, directionName } from "../i18n/catalog";
 import PresetPicker from "./PresetPicker";
@@ -16,6 +16,7 @@ interface IProps {
   canGenerate: boolean;
   hasImage: boolean;
   busy: boolean;
+  perspective: "flat" | "iso";
   onStates: (s: StateDef[]) => void;
   onSelect: (id: string) => void;
   onGenerate: (id: string) => void;
@@ -33,6 +34,7 @@ export default function StatesPanel({
   canGenerate,
   hasImage,
   busy,
+  perspective,
   onStates,
   onSelect,
   onGenerate,
@@ -109,6 +111,7 @@ export default function StatesPanel({
         <PresetPicker
           presets={presets}
           usedNames={usedNames}
+          perspective={perspective}
           onAdd={addPresetInfo}
           onClose={() => setPickerOpen(false)}
         />
@@ -206,7 +209,7 @@ export default function StatesPanel({
                         type="text"
                         className="h-7"
                         placeholder={t("action_ph")}
-                        value={s.action}
+                        value={resolveView(s.action, perspective)}
                         onChange={(e) => update(s.id, { action: e.target.value })}
                       />
                     </div>

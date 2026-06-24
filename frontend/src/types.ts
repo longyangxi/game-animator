@@ -87,10 +87,24 @@ export interface PresetInfo {
   loop: boolean;
 }
 
+// The view word substituted into preset action/choreography text wherever the
+// "{view}" placeholder appears. Mirrors the backend sprite.ViewToken so the UI
+// shows the same word the prompt will use. The backend resolves it for real at
+// generation time using the project perspective; this is for display only.
+export function viewWord(perspective: "flat" | "iso"): string {
+  return perspective === "iso" ? "top-down" : "side-view";
+}
+
+// resolveView replaces the {view} placeholder for display so users never see the
+// raw token in the action field or preset tooltips.
+export function resolveView(text: string, perspective: "flat" | "iso"): string {
+  return text.replace(/\{view\}/g, viewWord(perspective));
+}
+
 export const STATE_PRESETS: StatePreset[] = [
   { name: "idle", label: "Idle", frames: 4, fps: 6, loop: true, action: "subtle breathing idle in place" },
-  { name: "walk", label: "Walk", frames: 6, fps: 10, loop: true, action: "side-view walking cycle facing right" },
-  { name: "run", label: "Run", frames: 6, fps: 12, loop: true, action: "fast side-view running cycle facing right" },
+  { name: "walk", label: "Walk", frames: 6, fps: 10, loop: true, action: "{view} walking cycle facing right" },
+  { name: "run", label: "Run", frames: 6, fps: 12, loop: true, action: "fast {view} running cycle facing right" },
   { name: "jump", label: "Jump", frames: 5, fps: 10, loop: false, action: "crouch, take off, airborne peak, land" },
   { name: "attack", label: "Attack", frames: 5, fps: 12, loop: false, action: "melee attack with wind-up, strike, recovery" },
   { name: "hurt", label: "Hurt", frames: 3, fps: 10, loop: false, action: "recoil from being hit" },

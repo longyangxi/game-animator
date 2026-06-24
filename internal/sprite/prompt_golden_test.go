@@ -78,15 +78,27 @@ func TestPromptIso(t *testing.T) {
 		t.Error("iso facing section must differ from flat")
 	}
 
-	// Iso strips flat side-view wording from preset action/choreography; flat keeps it.
-	walkSpec := StateSpec{Name: "walk", Frames: 6, FPS: 10, Loop: true, Action: "side-view walking cycle facing right", Facing: ""}
+	// Preset walk/run carry a {view} placeholder resolved per perspective.
+	// Flat -> "side-view" (2D wording unchanged); iso -> "top-down".
+	walkSpec := StateSpec{Name: "walk", Frames: 6, FPS: 10, Loop: true, Action: "{view} walking cycle facing right", Facing: ""}
 	isoWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "iso")
-	if strings.Contains(isoWalk, "side-view") || strings.Contains(isoWalk, "facing right") {
-		t.Errorf("iso walk strip still carries flat side-view wording: %q", isoWalk)
+	if strings.Contains(isoWalk, viewPlaceholder) {
+		t.Errorf("iso walk strip left an unresolved %s token: %q", viewPlaceholder, isoWalk)
+	}
+	if strings.Contains(isoWalk, "side-view") || !strings.Contains(isoWalk, "top-down") {
+		t.Errorf("iso walk strip should resolve {view} to top-down, not side-view: %q", isoWalk)
 	}
 	flatWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "")
-	if !strings.Contains(flatWalk, "side-view") || !strings.Contains(flatWalk, "facing right") {
-		t.Error("flat walk strip must keep its original side-view wording unchanged")
+	if strings.Contains(flatWalk, viewPlaceholder) {
+		t.Errorf("flat walk strip left an unresolved %s token: %q", viewPlaceholder, flatWalk)
+	}
+	if !strings.Contains(flatWalk, "side-view") {
+		t.Errorf("flat walk strip must resolve {view} to side-view (2D unchanged): %q", flatWalk)
+	}
+
+	// ViewToken is the single source of truth for the view word.
+	if ViewToken("") != "side-view" || ViewToken("flat") != "side-view" || ViewToken("iso") != "top-down" {
+		t.Errorf("ViewToken wrong: flat=%q iso=%q", ViewToken("flat"), ViewToken("iso"))
 	}
 
 	// Iso strips the flat-camera phrasing from the directional facings; flat keeps it.
