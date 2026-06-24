@@ -75,6 +75,7 @@ export namespace main {
 	    description: string;
 	    styleKey: string;
 	    styleCustom: string;
+	    perspective: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GenerateCharacterArgs(source);
@@ -85,6 +86,7 @@ export namespace main {
 	        this.description = source["description"];
 	        this.styleKey = source["styleKey"];
 	        this.styleCustom = source["styleCustom"];
+	        this.perspective = source["perspective"];
 	    }
 	}
 	export class GenerateStateArgs {
@@ -97,6 +99,7 @@ export namespace main {
 	    feedback: string;
 	    refStrip: string;
 	    state: sprite.StateSpec;
+	    perspective: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GenerateStateArgs(source);
@@ -113,6 +116,7 @@ export namespace main {
 	        this.feedback = source["feedback"];
 	        this.refStrip = source["refStrip"];
 	        this.state = this.convertValues(source["state"], sprite.StateSpec);
+	        this.perspective = source["perspective"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
