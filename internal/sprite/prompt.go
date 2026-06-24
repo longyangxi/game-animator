@@ -15,7 +15,7 @@ func isIso(perspective string) bool {
 // The flat branch returns the exact text the prompt used before this parameter existed.
 func perspectiveCharacterBullet(perspective string) string {
 	if isIso(perspective) {
-		return "- Classic 2.5D isometric / top-down three-quarter game-sprite view: a fixed high camera tilted down about 35 degrees so the tops of the head and shoulders read and the figure stands on an implied isometric ground plane. Keep it orthographic pixel-isometric — one flat consistent scale, no vanishing-point perspective, no photographic foreshortening, no 3D render.\n"
+		return "- Classic isometric / top-down three-quarter game view: the camera looks DOWN at the character at about 35 degrees, the way a hero is drawn in an isometric RPG (e.g. Diablo, a tactics RPG). The TOPS of the head, shoulders and feet are clearly visible and the body reads as seen slightly from above (legs and feet gently foreshortened downward); the feet rest on an implied isometric ground plane — do NOT paint any floor, shadow or scenery, the background stays the flat keying color. This is NOT an eye-level front view. Keep it orthographic pixel-isometric: parallel projection at one constant scale, no vanishing-point perspective, no 3D render.\n"
 	}
 	return "- Almost flat 2D game-sprite view; avoid dramatic perspective, foreshortening, cinematic camera angles, and illustration-style posing.\n"
 }
@@ -24,7 +24,7 @@ func perspectiveCharacterBullet(perspective string) string {
 // It is empty for flat so the flat strip prompt is unchanged.
 func perspectiveStripClause(perspective string) string {
 	if isIso(perspective) {
-		return "Camera lock — THIS OVERRIDES THE DEFAULT SPRITE VIEW: draw every pose from the SAME high three-quarter overhead camera as the attached reference image — tilted down about 35 degrees so the tops of the head and shoulders show and the figure stands on an implied isometric ground plane. This is a 2.5D isometric / top-down three-quarter view. Do NOT use a flat side-on platformer or fighting-game profile, and do NOT rotate the character to a pure side view for the action — keep the exact same overhead tilt in every pose; only the limbs and body move within it. Orthographic pixel-isometric, no vanishing-point perspective, no 3D render.\n\n"
+		return "Camera lock — THIS OVERRIDES THE DEFAULT SPRITE VIEW: draw every pose with the camera looking DOWN at the character at about 35 degrees, exactly like the attached reference and like a hero sprite in an isometric / top-down RPG. The tops of the head, shoulders and feet are visible and the body reads as seen slightly from above, standing on an implied isometric ground plane (never paint a floor, shadow or scenery — the background stays the flat keying color). This is NOT a flat side-on platformer or fighting-game profile, and NOT a flat eye-level front view: do not flatten to eye level for the action — hold the exact same downward overhead tilt in every pose, only the limbs and body move within it. Keep it orthographic pixel-isometric: parallel projection, no vanishing-point perspective, no 3D render.\n\n"
 	}
 	return ""
 }
