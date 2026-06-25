@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, Compass, FlipHorizontal2, Loader2, Plus, Sparkles, X, Zap } from "lucide-react";
-import { DirectionInfo, PresetInfo, StateDef, presetInfoToState, resolveView, selectedFrames } from "../types";
+import { DirectionInfo, PresetInfo, StateDef, presetInfoToState, resolveActionDisplay, selectedFrames } from "../types";
 import { useI18n } from "../i18n";
 import { composeStateLabel, directionName } from "../i18n/catalog";
 import PresetPicker from "./PresetPicker";
@@ -209,7 +209,7 @@ export default function StatesPanel({
                         type="text"
                         className="h-7"
                         placeholder={t("action_ph")}
-                        value={resolveView(s.action, perspective)}
+                        value={resolveActionDisplay(s.action, s.facing, perspective)}
                         onChange={(e) => update(s.id, { action: e.target.value })}
                       />
                     </div>

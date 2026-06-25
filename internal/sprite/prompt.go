@@ -36,7 +36,7 @@ func perspectiveStripClause(perspective string) string {
 // keeping 2D output byte-identical.
 func ViewToken(perspective string) string {
 	if isIso(perspective) {
-		return "top-down"
+		return "isometric"
 	}
 	return "side-view"
 }
@@ -48,6 +48,17 @@ const viewPlaceholder = "{view}"
 // perspective. It always runs; for flat it yields the original wording.
 func substituteView(s, perspective string) string {
 	return strings.ReplaceAll(s, viewPlaceholder, ViewToken(perspective))
+}
+
+// stripBakedFacing removes a hardcoded travel direction from preset action text
+// (e.g. walk/run "... facing right"). Callers apply it only when an explicit
+// Facing direction is selected, so the Facing direction lock — not a baked
+// phrase — owns orientation and never contradicts the chosen direction.
+func stripBakedFacing(s string) string {
+	for _, p := range []string{" facing right", " facing left"} {
+		s = strings.ReplaceAll(s, p, "")
+	}
+	return s
 }
 
 // isoFacingFlatPhrases are flat-camera wordings baked into the directional
@@ -232,6 +243,11 @@ func BuildStripPrompt(description, style string, spec StateSpec, feedback, persp
 	// view word. Always runs; for flat it reproduces the original wording.
 	action = substituteView(action, perspective)
 	hint = substituteView(hint, perspective)
+	// When an explicit facing is chosen, the Facing direction lock owns
+	// orientation — drop any baked "facing right/left" so it can't contradict.
+	if spec.Facing != "" {
+		action = stripBakedFacing(action)
+	}
 	fmt.Fprintf(&b, "Movement: %s.\n", action)
 	if hint != "" {
 		fmt.Fprintf(&b, "Choreography: %s\n", hint)

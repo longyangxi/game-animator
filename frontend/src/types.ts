@@ -92,13 +92,27 @@ export interface PresetInfo {
 // shows the same word the prompt will use. The backend resolves it for real at
 // generation time using the project perspective; this is for display only.
 export function viewWord(perspective: "flat" | "iso"): string {
-  return perspective === "iso" ? "top-down" : "side-view";
+  return perspective === "iso" ? "isometric" : "side-view";
 }
 
 // resolveView replaces the {view} placeholder for display so users never see the
 // raw token in the action field or preset tooltips.
 export function resolveView(text: string, perspective: "flat" | "iso"): string {
   return text.replace(/\{view\}/g, viewWord(perspective));
+}
+
+// resolveActionDisplay shows the action exactly as the prompt will use it:
+// {view} resolved, and any baked "facing right/left" dropped once an explicit
+// Facing direction is chosen (then the Facing control owns orientation).
+// Mirrors the backend BuildStripPrompt logic.
+export function resolveActionDisplay(
+  action: string,
+  facing: string | undefined,
+  perspective: "flat" | "iso",
+): string {
+  let s = resolveView(action, perspective);
+  if (facing) s = s.replace(/ facing (right|left)/g, "");
+  return s;
 }
 
 export const STATE_PRESETS: StatePreset[] = [

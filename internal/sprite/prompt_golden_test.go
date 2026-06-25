@@ -79,25 +79,37 @@ func TestPromptIso(t *testing.T) {
 	}
 
 	// Preset walk/run carry a {view} placeholder resolved per perspective.
-	// Flat -> "side-view" (2D wording unchanged); iso -> "top-down".
+	// Flat -> "side-view" (2D wording unchanged); iso -> "isometric".
 	walkSpec := StateSpec{Name: "walk", Frames: 6, FPS: 10, Loop: true, Action: "{view} walking cycle facing right", Facing: ""}
 	isoWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "iso")
 	if strings.Contains(isoWalk, viewPlaceholder) {
 		t.Errorf("iso walk strip left an unresolved %s token: %q", viewPlaceholder, isoWalk)
 	}
-	if strings.Contains(isoWalk, "side-view") || !strings.Contains(isoWalk, "top-down") {
-		t.Errorf("iso walk strip should resolve {view} to top-down, not side-view: %q", isoWalk)
+	if strings.Contains(isoWalk, "side-view walking cycle") || !strings.Contains(isoWalk, "isometric walking cycle") {
+		t.Errorf("iso walk action should resolve {view} to isometric, not side-view: %q", isoWalk)
 	}
 	flatWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "")
 	if strings.Contains(flatWalk, viewPlaceholder) {
 		t.Errorf("flat walk strip left an unresolved %s token: %q", viewPlaceholder, flatWalk)
 	}
-	if !strings.Contains(flatWalk, "side-view") {
-		t.Errorf("flat walk strip must resolve {view} to side-view (2D unchanged): %q", flatWalk)
+	if !strings.Contains(flatWalk, "side-view walking cycle") {
+		t.Errorf("flat walk action must resolve {view} to side-view (2D unchanged): %q", flatWalk)
+	}
+
+	// A baked travel direction ("facing right") is dropped once an explicit
+	// Facing is chosen (the Facing direction lock owns orientation), but kept
+	// when no direction is selected (preserves the 2D default).
+	walkEast := walkSpec
+	walkEast.Facing = "east"
+	if strings.Contains(BuildStripPrompt("a knight", StylePresets["pixel"], walkEast, "", ""), "facing right") {
+		t.Error("walk with a chosen Facing must drop the baked 'facing right'")
+	}
+	if !strings.Contains(flatWalk, "facing right") {
+		t.Error(`walk with no Facing ("Not set") must keep its default "facing right"`)
 	}
 
 	// ViewToken is the single source of truth for the view word.
-	if ViewToken("") != "side-view" || ViewToken("flat") != "side-view" || ViewToken("iso") != "top-down" {
+	if ViewToken("") != "side-view" || ViewToken("flat") != "side-view" || ViewToken("iso") != "isometric" {
 		t.Errorf("ViewToken wrong: flat=%q iso=%q", ViewToken("flat"), ViewToken("iso"))
 	}
 
