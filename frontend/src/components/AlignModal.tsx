@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { useI18n } from "../i18n";
 import { FrameItem, FrameTransform } from "../types";
-import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform, framePad, tintSilhouette, PAD_FRAC_MAX } from "../lib/frameTransform";
+import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform, framePad, outlineSilhouette, PAD_FRAC_MAX } from "../lib/frameTransform";
 
 interface IProps {
   items: FrameItem[];
@@ -25,7 +25,7 @@ export default function AlignModal({ items, index, cellSize, padFrac, onPadFracC
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgsRef = useRef<Record<number, HTMLImageElement>>({});
-  const tintsRef = useRef<Record<number, HTMLCanvasElement>>({}); // recolored silhouettes, cached per neighbor
+  const edgesRef = useRef<Record<number, HTMLCanvasElement>>({}); // colored direction outlines, cached per neighbor
   const [onion, setOnion] = useState(true);
   const [draft, setDraft] = useState<FrameTransform>(items[index].transform ?? identityTransform());
   const draftRef = useRef(draft);
@@ -65,18 +65,22 @@ export default function AlignModal({ items, index, cellSize, padFrac, onPadFracC
     ctx.strokeRect(0.5, 0.5, VIEW - 1, VIEW - 1);
     ctx.strokeStyle = "rgba(120,120,255,0.6)";
     ctx.strokeRect(pk + 0.5, pk + 0.5, cs - 1, cs - 1);
-    // onion ghosts (neighbors with their own stored transform), tinted red=prev / blue=next
+    // onion ghosts: faint full-color image keeps interior detail, a colored outline
+    // (red = prev / blue = next) marks the direction.
     if (onion) {
-      ctx.globalAlpha = 0.45;
       neighbors.forEach((i) => {
         const im = imgsRef.current[i];
         if (!im || !im.complete) return;
-        let tint = tintsRef.current[i];
-        if (!tint) {
-          tint = tintSilhouette(im, i < index ? PREV_COLOR : NEXT_COLOR);
-          tintsRef.current[i] = tint;
+        const st = scaleTransform(items[i].transform, k);
+        ctx.globalAlpha = 0.3;
+        applyTransform(ctx, im, im.width * k, im.height * k, st, cs, pk);
+        let edge = edgesRef.current[i];
+        if (!edge) {
+          edge = outlineSilhouette(im, i < index ? PREV_COLOR : NEXT_COLOR);
+          edgesRef.current[i] = edge;
         }
-        applyTransform(ctx, tint, im.width * k, im.height * k, scaleTransform(items[i].transform, k), cs, pk);
+        ctx.globalAlpha = 0.95;
+        applyTransform(ctx, edge, im.width * k, im.height * k, st, cs, pk);
       });
       ctx.globalAlpha = 1;
     }

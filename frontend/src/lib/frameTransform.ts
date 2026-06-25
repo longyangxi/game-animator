@@ -87,6 +87,28 @@ export function tintSilhouette(img: HTMLImageElement, color: string): HTMLCanvas
   return c;
 }
 
+// Builds a crisp colored outline of `img`'s alpha shape: dilate the tinted silhouette by
+// `thickness` px in every direction, then punch the original shape back out so only a ring
+// remains. Drawn over the faint full-color ghost so onion neighbors keep their interior
+// detail while the edge still reads warm = prev / cool = next.
+export function outlineSilhouette(img: HTMLImageElement, color: string, thickness = 1): HTMLCanvasElement {
+  const sil = tintSilhouette(img, color);
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const cx = c.getContext("2d")!;
+  cx.imageSmoothingEnabled = false;
+  for (let dx = -thickness; dx <= thickness; dx++) {
+    for (let dy = -thickness; dy <= thickness; dy++) {
+      if (dx === 0 && dy === 0) continue;
+      cx.drawImage(sil, dx, dy);
+    }
+  }
+  cx.globalCompositeOperation = "destination-out"; // remove the interior, leaving the ring
+  cx.drawImage(img, 0, 0);
+  return c;
+}
+
 // Convert a transform whose dx/dy are in cell pixels into one for a canvas scaled by k (view px / cell px).
 export function scaleTransform(t: FrameTransform | undefined, k: number): FrameTransform | undefined {
   if (!t) return undefined;
