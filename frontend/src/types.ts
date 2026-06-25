@@ -92,7 +92,7 @@ export interface PresetInfo {
 // shows the same word the prompt will use. The backend resolves it for real at
 // generation time using the project perspective; this is for display only.
 export function viewWord(perspective: "flat" | "iso"): string {
-  return perspective === "iso" ? "isometric" : "side-view";
+  return perspective === "iso" ? "high-angle" : "side-view";
 }
 
 // resolveView replaces the {view} placeholder for display so users never see the

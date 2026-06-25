@@ -126,7 +126,7 @@ const ko: Record<string, string> = {
   warn_count: "잠재적 문제 {n}건 감지됨 — 클릭하여 보기",
   view_label: "시점",
   view_flat: "2D (평면)",
-  view_iso: "2.5D (등각)",
+  view_iso: "2.5D (하이앵글)",
   view_hint: "시점 변경을 적용하려면 캐릭터와 애니메이션을 다시 생성하세요.",
   refine_title: "마음에 들지 않나요? 피드백과 함께 다시 생성하세요",
   feedback_ph: "예: 팔 동작을 더 크게, 다리가 잘리지 않게, 모자 색을 유지해줘",

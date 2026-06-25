@@ -36,7 +36,7 @@ func perspectiveStripClause(perspective string) string {
 // keeping 2D output byte-identical.
 func ViewToken(perspective string) string {
 	if isIso(perspective) {
-		return "isometric"
+		return "high-angle"
 	}
 	return "side-view"
 }

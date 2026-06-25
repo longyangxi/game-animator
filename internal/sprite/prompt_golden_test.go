@@ -79,14 +79,14 @@ func TestPromptIso(t *testing.T) {
 	}
 
 	// Preset walk/run carry a {view} placeholder resolved per perspective.
-	// Flat -> "side-view" (2D wording unchanged); iso -> "isometric".
+	// Flat -> "side-view" (2D wording unchanged); iso -> "high-angle".
 	walkSpec := StateSpec{Name: "walk", Frames: 6, FPS: 10, Loop: true, Action: "{view} walking cycle facing right", Facing: ""}
 	isoWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "iso")
 	if strings.Contains(isoWalk, viewPlaceholder) {
 		t.Errorf("iso walk strip left an unresolved %s token: %q", viewPlaceholder, isoWalk)
 	}
-	if strings.Contains(isoWalk, "side-view walking cycle") || !strings.Contains(isoWalk, "isometric walking cycle") {
-		t.Errorf("iso walk action should resolve {view} to isometric, not side-view: %q", isoWalk)
+	if strings.Contains(isoWalk, "side-view walking cycle") || !strings.Contains(isoWalk, "high-angle walking cycle") {
+		t.Errorf("iso walk action should resolve {view} to high-angle, not side-view: %q", isoWalk)
 	}
 	flatWalk := BuildStripPrompt("a knight", StylePresets["pixel"], walkSpec, "", "")
 	if strings.Contains(flatWalk, viewPlaceholder) {
@@ -109,7 +109,7 @@ func TestPromptIso(t *testing.T) {
 	}
 
 	// ViewToken is the single source of truth for the view word.
-	if ViewToken("") != "side-view" || ViewToken("flat") != "side-view" || ViewToken("iso") != "isometric" {
+	if ViewToken("") != "side-view" || ViewToken("flat") != "side-view" || ViewToken("iso") != "high-angle" {
 		t.Errorf("ViewToken wrong: flat=%q iso=%q", ViewToken("flat"), ViewToken("iso"))
 	}
 

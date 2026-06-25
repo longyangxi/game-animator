@@ -126,7 +126,7 @@ const es: Record<string, string> = {
   warn_count: "{n} posible(s) problema(s) detectado(s) — haz clic para ver",
   view_label: "Vista",
   view_flat: "2D (plano)",
-  view_iso: "2.5D (isométrico)",
+  view_iso: "2.5D (ángulo alto)",
   view_hint: "Regenera el personaje y las animaciones para aplicar el cambio de vista.",
   refine_title: "¿No te convence? Regenera con comentarios",
   feedback_ph: "ej.: mayor movimiento de brazos, no cortes las piernas, mantén el color del sombrero",

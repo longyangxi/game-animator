@@ -126,7 +126,7 @@ const en: Record<string, string> = {
   warn_count: "{n} potential issue(s) detected — click to view",
   view_label: "View",
   view_flat: "2D (flat)",
-  view_iso: "2.5D (isometric)",
+  view_iso: "2.5D (high-angle)",
   view_hint: "Regenerate the character and animations to apply a view change.",
   refine_title: "Not happy with it? Regenerate with feedback",
   feedback_ph: "e.g. bigger arm motion, don't cut off the legs, keep the hat color",
