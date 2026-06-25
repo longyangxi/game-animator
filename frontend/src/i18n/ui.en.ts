@@ -187,6 +187,8 @@ const en: Record<string, string> = {
 
   align_title: "Align frame",
   align_onion: "Onion skin",
+  align_prev: "Previous",
+  align_next: "Next",
   align_reset: "Reset",
   align_done: "Done",
   align_cancel: "Cancel",

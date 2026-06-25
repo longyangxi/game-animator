@@ -187,6 +187,8 @@ const es: Record<string, string> = {
 
   align_title: "Alinear fotograma",
   align_onion: "Papel cebolla",
+  align_prev: "Anterior",
+  align_next: "Siguiente",
   align_reset: "Restablecer",
   align_done: "Hecho",
   align_cancel: "Cancelar",

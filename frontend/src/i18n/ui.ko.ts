@@ -187,6 +187,8 @@ const ko: Record<string, string> = {
 
   align_title: "프레임 정렬",
   align_onion: "어니언 스킨",
+  align_prev: "이전 프레임",
+  align_next: "다음 프레임",
   align_reset: "초기화",
   align_done: "완료",
   align_cancel: "취소",

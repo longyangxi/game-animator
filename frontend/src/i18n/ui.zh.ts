@@ -187,6 +187,8 @@ const zh: Record<string, string> = {
 
   align_title: "对齐帧",
   align_onion: "洋葱皮",
+  align_prev: "前一帧",
+  align_next: "后一帧",
   align_reset: "重置",
   align_done: "完成",
   align_cancel: "取消",

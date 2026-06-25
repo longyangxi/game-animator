@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { useI18n } from "../i18n";
 import { FrameItem, FrameTransform } from "../types";
-import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform, framePad, PAD_FRAC_MAX } from "../lib/frameTransform";
+import { identityTransform, isIdentity, clampScale, applyTransform, scaleTransform, framePad, tintSilhouette, PAD_FRAC_MAX } from "../lib/frameTransform";
 
 interface IProps {
   items: FrameItem[];
@@ -16,11 +16,16 @@ interface IProps {
 }
 
 const VIEW = 360; // on-screen canvas size (px)
+// Onion-skin direction cues (animation convention): the previous frame is tinted warm (red)
+// and the next frame cool (blue), so the user can tell past from future at a glance.
+const PREV_COLOR = "#ff4d4d";
+const NEXT_COLOR = "#3b9dff";
 
 export default function AlignModal({ items, index, cellSize, padFrac, onPadFracChange, onSave, onClose }: IProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgsRef = useRef<Record<number, HTMLImageElement>>({});
+  const tintsRef = useRef<Record<number, HTMLCanvasElement>>({}); // recolored silhouettes, cached per neighbor
   const [onion, setOnion] = useState(true);
   const [draft, setDraft] = useState<FrameTransform>(items[index].transform ?? identityTransform());
   const draftRef = useRef(draft);
@@ -60,12 +65,18 @@ export default function AlignModal({ items, index, cellSize, padFrac, onPadFracC
     ctx.strokeRect(0.5, 0.5, VIEW - 1, VIEW - 1);
     ctx.strokeStyle = "rgba(120,120,255,0.6)";
     ctx.strokeRect(pk + 0.5, pk + 0.5, cs - 1, cs - 1);
-    // onion ghosts (neighbors with their own stored transform)
+    // onion ghosts (neighbors with their own stored transform), tinted red=prev / blue=next
     if (onion) {
-      ctx.globalAlpha = 0.25;
+      ctx.globalAlpha = 0.45;
       neighbors.forEach((i) => {
         const im = imgsRef.current[i];
-        if (im && im.complete) applyTransform(ctx, im, im.width * k, im.height * k, scaleTransform(items[i].transform, k), cs, pk);
+        if (!im || !im.complete) return;
+        let tint = tintsRef.current[i];
+        if (!tint) {
+          tint = tintSilhouette(im, i < index ? PREV_COLOR : NEXT_COLOR);
+          tintsRef.current[i] = tint;
+        }
+        applyTransform(ctx, tint, im.width * k, im.height * k, scaleTransform(items[i].transform, k), cs, pk);
       });
       ctx.globalAlpha = 1;
     }
@@ -134,6 +145,12 @@ export default function AlignModal({ items, index, cellSize, padFrac, onPadFracC
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <input type="checkbox" checked={onion} onChange={(e) => setOnion(e.target.checked)} />
             {t("align_onion")}
+            {onion && (
+              <span style={{ display: "flex", gap: 10, marginLeft: 6, fontSize: 12, opacity: 0.85 }}>
+                {index > 0 && <LegendDot color={PREV_COLOR} label={t("align_prev")} />}
+                {index < items.length - 1 && <LegendDot color={NEXT_COLOR} label={t("align_next")} />}
+              </span>
+            )}
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {t("align_scale")}
@@ -164,5 +181,14 @@ export default function AlignModal({ items, index, cellSize, padFrac, onPadFracC
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, display: "inline-block" }} />
+      {label}
+    </span>
   );
 }

@@ -70,6 +70,23 @@ export function applyTransform(
   ctx.drawImage(img, r.x, r.y, r.w, r.h);
 }
 
+// Returns an offscreen canvas holding `img`'s silhouette recolored to `color` (alpha shape
+// preserved, original colors replaced). Used to tint onion-skin ghosts so the previous and
+// next frames are distinguishable by hue (warm = past, cool = future) instead of looking
+// identical under a flat opacity wash.
+export function tintSilhouette(img: HTMLImageElement, color: string): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const cx = c.getContext("2d")!;
+  cx.imageSmoothingEnabled = false;
+  cx.drawImage(img, 0, 0);
+  cx.globalCompositeOperation = "source-in"; // keep alpha, paint the fill only over opaque pixels
+  cx.fillStyle = color;
+  cx.fillRect(0, 0, c.width, c.height);
+  return c;
+}
+
 // Convert a transform whose dx/dy are in cell pixels into one for a canvas scaled by k (view px / cell px).
 export function scaleTransform(t: FrameTransform | undefined, k: number): FrameTransform | undefined {
   if (!t) return undefined;
