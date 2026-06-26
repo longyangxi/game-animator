@@ -25,9 +25,17 @@ type Settings struct {
 	BytePlus   ProviderCfg `json:"byteplus"`
 	Replicate  ProviderCfg `json:"replicate"`
 
+	MotionLibrary *bool `json:"motionLibrary,omitempty"` // nil = default ON
+
 	// Legacy fields (for migration from v1).
 	LegacyAPIKey string `json:"apiKey,omitempty"`
 	LegacyModel  string `json:"model,omitempty"`
+}
+
+// MotionLibraryEnabled reports whether the motion-reference library is on.
+// Unset (nil) defaults to true so the feature is on for new and existing users.
+func (s *Settings) MotionLibraryEnabled() bool {
+	return s.MotionLibrary == nil || *s.MotionLibrary
 }
 
 // Cfg returns the configuration for the given provider name.

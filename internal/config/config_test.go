@@ -60,3 +60,20 @@ func TestSettingsCfg(t *testing.T) {
 		t.Fatal("Cfg should return a pointer")
 	}
 }
+
+func TestMotionLibraryEnabled(t *testing.T) {
+	var s Settings
+	if !s.MotionLibraryEnabled() {
+		t.Errorf("unset MotionLibrary should default to enabled (true)")
+	}
+	off := false
+	s.MotionLibrary = &off
+	if s.MotionLibraryEnabled() {
+		t.Errorf("explicit false should be disabled")
+	}
+	on := true
+	s.MotionLibrary = &on
+	if !s.MotionLibraryEnabled() {
+		t.Errorf("explicit true should be enabled")
+	}
+}
