@@ -23,7 +23,7 @@ Pixel rendering contract:
 - Every important shape must remain readable when shrunk to a thumbnail: silhouette first, details second.
 
 Movement: melee attack.
-Choreography: Melee attack: wind-up with body coiled back, powerful strike at full extension, follow-through, recovery to ready stance. The strike frame is the most extreme pose.
+Choreography: Explosive melee attack with exaggerated, dynamic poses: a deep wind-up coiling the whole body back with the weapon or fists raised high, then a powerful lunging strike thrown to FULL extension — deep forward stance, strong forward lean, both arms driving forward — then follow-through and recovery to a ready stance. Make the strike frame the single most extreme, exaggerated pose: maximum reach and a deep lunge.
 Treat the 5 poses as evenly timed beats of one continuous motion — pose k is phase k of 5, and neighbours read as smooth in-betweens, never unrelated stances.
 It plays once: give it a clear start, peak, and settle.
 
