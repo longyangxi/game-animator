@@ -1,4 +1,10 @@
 provider=openai model=gpt-image-2 style=pixel state=attack frames=5 → experiments/pose-template/out
 [A_pose+text] generating... 5/5 frames, motion=0.362 (52s)
 [B_pose-only] generating... 5/5 frames, motion=0.321 (61s)
-[C_control-textonly] generating... 
+[C_control-textonly] generating... 5/5 frames, motion=0.293 (51s)
+
+done — compare:
+  experiments/pose-template/out/pose-template-strip.png   (borrowed poses fed in)
+  experiments/pose-template/out/A_pose+text.gif
+  experiments/pose-template/out/B_pose-only.gif
+  experiments/pose-template/out/C_control-textonly.gif
