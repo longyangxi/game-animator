@@ -49,4 +49,6 @@ export function SaveProviderModel(arg1:string,arg2:string):Promise<void>;
 
 export function SaveSession(arg1:string):Promise<void>;
 
+export function SetMotionLibrary(arg1:boolean):Promise<void>;
+
 export function SetProvider(arg1:string):Promise<void>;

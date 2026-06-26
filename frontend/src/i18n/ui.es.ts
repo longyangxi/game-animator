@@ -197,6 +197,9 @@ const es: Record<string, string> = {
   align_hint: "Arrastra para mover · rueda para escalar · flechas 1px",
   align_open: "Alinear este fotograma",
   align_adjusted: "Ajustado",
+
+  settingsMotionLibrary: 'Usar referencia de movimiento (beta)',
+  settingsMotionLibraryHint: 'Guía las animaciones con una plantilla de pose validada para acciones comunes. Desactívalo para usar solo prompts de texto.',
 };
 
 export default es;

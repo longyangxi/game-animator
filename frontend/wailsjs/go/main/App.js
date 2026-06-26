@@ -94,6 +94,10 @@ export function SaveSession(arg1) {
   return window['go']['main']['App']['SaveSession'](arg1);
 }
 
+export function SetMotionLibrary(arg1) {
+  return window['go']['main']['App']['SetMotionLibrary'](arg1);
+}
+
 export function SetProvider(arg1) {
   return window['go']['main']['App']['SetProvider'](arg1);
 }

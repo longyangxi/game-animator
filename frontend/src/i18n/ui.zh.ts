@@ -197,6 +197,9 @@ const zh: Record<string, string> = {
   align_hint: "拖动移动 · 滚轮缩放 · 方向键微调 1px",
   align_open: "对齐这一帧",
   align_adjusted: "已调整",
+
+  settingsMotionLibrary: '使用动作参考图（实验）',
+  settingsMotionLibraryHint: '用验证过的姿势模板引导常用动作的动画。关闭则只用文字提示。',
 };
 
 export default zh;

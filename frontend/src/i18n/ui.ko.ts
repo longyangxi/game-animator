@@ -197,6 +197,9 @@ const ko: Record<string, string> = {
   align_hint: "드래그로 이동 · 스크롤로 크기 · 방향키 1px 미세조정",
   align_open: "이 프레임 정렬",
   align_adjusted: "조정됨",
+
+  settingsMotionLibrary: '모션 레퍼런스 사용 (베타)',
+  settingsMotionLibraryHint: '검증된 포즈 템플릿으로 일반 동작 애니메이션을 안내합니다. 끄면 텍스트 프롬프트만 사용합니다.',
 };
 
 export default ko;

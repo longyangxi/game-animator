@@ -197,6 +197,9 @@ const en: Record<string, string> = {
   align_hint: "Drag to move · scroll to scale · arrow keys nudge 1px",
   align_open: "Align this frame",
   align_adjusted: "Adjusted",
+
+  settingsMotionLibrary: 'Use motion reference (beta)',
+  settingsMotionLibraryHint: 'Guide animations with a validated pose template for common actions. Turn off to use text prompts only.',
 };
 
 export default en;

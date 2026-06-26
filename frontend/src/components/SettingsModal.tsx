@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { SaveProviderKey, SaveProviderModel, SetProvider } from "../../wailsjs/go/main/App";
+import { SaveProviderKey, SaveProviderModel, SetMotionLibrary, SetProvider } from "../../wailsjs/go/main/App";
 import { useI18n, LANGUAGES, Lang } from "../i18n";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
@@ -19,6 +19,7 @@ export interface IProviderInfo {
 export interface ISettings {
   provider: string;
   providers: Record<string, IProviderInfo>;
+  motionLibrary?: boolean;
 }
 
 interface IProps {
@@ -43,6 +44,7 @@ export default function SettingsModal({ settings, onClose, onSaved }: IProps) {
   const [tab, setTab] = useState(settings.provider || "gemini");
   const [key, setKey] = useState("");
   const [model, setModel] = useState(settings.providers?.[settings.provider || "gemini"]?.model ?? "");
+  const [motionLibrary, setMotionLibrary] = useState(settings.motionLibrary ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -121,6 +123,24 @@ export default function SettingsModal({ settings, onClose, onSaved }: IProps) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="field">
+          <label className="flex items-center justify-between gap-3">
+            <span>
+              <div>{t('settingsMotionLibrary')}</div>
+              <div className="text-xs opacity-70">{t('settingsMotionLibraryHint')}</div>
+            </span>
+            <input
+              type="checkbox"
+              checked={motionLibrary}
+              onChange={async (e) => {
+                const v = e.target.checked;
+                setMotionLibrary(v);
+                await SetMotionLibrary(v);
+              }}
+            />
+          </label>
         </div>
 
         <Tabs value={tab} onValueChange={switchTab}>
