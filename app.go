@@ -17,6 +17,7 @@ import (
 
 	"perfectpixel/internal/config"
 	"perfectpixel/internal/gen"
+	"perfectpixel/internal/motionlib"
 	"perfectpixel/internal/sprite"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -111,8 +112,9 @@ type ProviderInfo struct {
 
 // SettingsInfo is the settings state exposed to the frontend.
 type SettingsInfo struct {
-	Provider  string                  `json:"provider"`
-	Providers map[string]ProviderInfo `json:"providers"`
+	Provider      string                  `json:"provider"`
+	Providers     map[string]ProviderInfo `json:"providers"`
+	MotionLibrary bool                    `json:"motionLibrary"`
 }
 
 func keyPreview(key string) string {
@@ -125,7 +127,7 @@ func keyPreview(key string) string {
 // GetSettings returns the current settings state (the raw key is never exposed).
 func (a *App) GetSettings() SettingsInfo {
 	s := config.Load()
-	info := SettingsInfo{Provider: s.Provider, Providers: map[string]ProviderInfo{}}
+	info := SettingsInfo{Provider: s.Provider, Providers: map[string]ProviderInfo{}, MotionLibrary: s.MotionLibraryEnabled()}
 	for _, p := range gen.SupportedProviders {
 		cfg := s.Cfg(p)
 		model := cfg.Model
@@ -185,6 +187,13 @@ func (a *App) SetProvider(provider string) error {
 	}
 	s := config.Load()
 	s.Provider = provider
+	return config.Save(s)
+}
+
+// SetMotionLibrary turns the motion-reference library on or off.
+func (a *App) SetMotionLibrary(enabled bool) error {
+	s := config.Load()
+	s.MotionLibrary = &enabled
 	return config.Save(s)
 }
 
@@ -358,6 +367,17 @@ type StateResult struct {
 	Scores   sprite.ScoreResult `json:"scores"`
 }
 
+// libraryTemplate decides whether a motion-library pose template applies to this
+// generation. It returns the template PNG bytes and whether the pose-transfer
+// clause should be appended. The directional RefStrip always wins, so the
+// library is used only when enabled, no RefStrip is set, and the action is covered.
+func libraryTemplate(stateName string, refStripPresent, enabled bool) ([]byte, bool) {
+	if !enabled || refStripPresent {
+		return nil, false
+	}
+	return motionlib.Template(stateName)
+}
+
 // GenerateState generates the strip for one state and extracts its frames.
 func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 	res := StateResult{Name: args.State.Name, Expected: args.State.Frames}
@@ -397,10 +417,19 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 
 	// generation reference images: base character + (optional) front strip
 	refs := [][]byte{baseRaw}
-	if strings.TrimSpace(args.RefStrip) != "" {
+	refStripPresent := strings.TrimSpace(args.RefStrip) != ""
+	if refStripPresent {
 		if refRaw, err := decodeDataURL(args.RefStrip); err == nil {
 			refs = append(refs, refRaw)
 		}
+	}
+	// motion-reference library: when enabled and not a directional set, append a
+	// validated pose template so the model copies its choreography onto our character.
+	motionTemplate := false
+	cfg := config.Load()
+	if tpl, use := libraryTemplate(args.State.Name, refStripPresent, cfg.MotionLibraryEnabled()); use {
+		refs = append(refs, tpl)
+		motionTemplate = true
 	}
 
 	// automatically retry until the exact frame count is produced (up to 3 times)
@@ -416,7 +445,9 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		prompt := sprite.BuildStripPrompt(args.Description, style, args.State, feedback, args.Perspective)
-		if len(refs) > 1 {
+		if motionTemplate {
+			prompt += sprite.PoseTemplateClause(args.State.Name, args.State.Frames)
+		} else if len(refs) > 1 {
 			prompt += "\nMotion reference: the second attached image is the FRONT-view animation strip of this same character performing this exact action. Reproduce the same motion timing and pose phases frame by frame, but viewed from the required facing direction above.\n"
 		}
 

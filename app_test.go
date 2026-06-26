@@ -4,6 +4,26 @@ import (
 	"testing"
 )
 
+func TestLibraryTemplate(t *testing.T) {
+	// enabled, covered action, no RefStrip -> template returned, clause on
+	tpl, use := libraryTemplate("attack", false, true)
+	if !use || len(tpl) == 0 {
+		t.Fatalf("attack/enabled/no-refstrip should use the library template")
+	}
+	// disabled -> never
+	if _, use := libraryTemplate("attack", false, false); use {
+		t.Errorf("disabled toggle must not use the library")
+	}
+	// RefStrip present (directional set) -> never
+	if _, use := libraryTemplate("attack", true, true); use {
+		t.Errorf("RefStrip precedence: must not use the library")
+	}
+	// uncovered action -> never
+	if _, use := libraryTemplate("taunt", false, true); use {
+		t.Errorf("uncovered action must not use the library")
+	}
+}
+
 // TestSessionRoundTrip verifies the session save → restore → delete flow.
 // HOME is isolated to a temporary directory so the real user session is not touched.
 func TestSessionRoundTrip(t *testing.T) {
