@@ -192,3 +192,10 @@ func stripDirectionSuffix(name string) string {
 	}
 	return name
 }
+
+// BaseStateName lowercases, trims, and strips a trailing direction suffix from a
+// state name, yielding the base preset keyword (e.g. "attack-south" -> "attack").
+func BaseStateName(name string) string {
+	key := strings.ToLower(strings.TrimSpace(name))
+	return stripDirectionSuffix(key)
+}

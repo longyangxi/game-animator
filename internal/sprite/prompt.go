@@ -346,3 +346,17 @@ func AspectForFrames(frames int) string {
 	}
 	return fmt.Sprintf("%d:9", int(ratio*9+0.5))
 }
+
+// PoseTemplateClause instructs the model to treat a SECOND attached image as a
+// pose/motion template from a DIFFERENT character: identity comes from image 1,
+// only the body choreography comes from image 2, and image 2's effects/colours
+// are explicitly discarded. Shared by app.go (motion library) and cmd/ppposetest.
+func PoseTemplateClause(stateName string, frames int) string {
+	return fmt.Sprintf(`
+Pose template (CRITICAL — read carefully): TWO images are attached.
+- Image 1 is the CANONICAL CHARACTER. Take ALL identity from it: face, hairstyle, body build, outfit, armor, cape, palette, and the weapon or signature prop. The output MUST be image 1's character.
+- Image 2 is a POSE TEMPLATE showing a DIFFERENT character performing the "%s" action across several frames, read left to right. Copy ONLY the body choreography from image 2: stance, limb positions, weight shift, wind-up, strike, and recovery arc. Re-pose OUR character (image 1) through those same key poses and motion timing.
+- Do NOT copy image 2's character, colours, outfit, weapon shape, or its background. Do NOT reproduce any glow, slash-arc, swoosh, streak, spark, or motion effect drawn in image 2 — render only OUR character's solid body in those poses on the clean keying background.
+- Distribute the template's motion across our EXACTLY %d poses (start/wind-up, peak strike, settle).
+`, stateName, frames)
+}

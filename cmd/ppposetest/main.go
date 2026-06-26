@@ -135,14 +135,14 @@ func run(basePath, posePath string, poseRows, poseRow int, desc, styleKey, state
 
 	// Variant A — pose template + our text choreography.
 	specA := sprite.StateSpec{Name: pre.Name, Frames: pre.Frames, FPS: pre.FPS, Loop: pre.Loop, Action: pre.Action}
-	promptA := sprite.BuildStripPrompt(desc, style, specA, "", "") + poseTemplateClause(stateName, pre.Frames)
+	promptA := sprite.BuildStripPrompt(desc, style, specA, "", "") + sprite.PoseTemplateClause(stateName, pre.Frames)
 
 	// Variant B — pose template only (no attack-specific text choreography).
 	// A name not in the preset catalog yields an empty MotionHint, so no
 	// choreography line leaks in; the movement line defers to the pose image.
 	specB := sprite.StateSpec{Name: stateName + "-posetemplate", Frames: pre.Frames, FPS: pre.FPS, Loop: pre.Loop,
 		Action: "perform the action shown in the attached pose template strip"}
-	promptB := sprite.BuildStripPrompt(desc, style, specB, "", "") + poseTemplateClause(stateName, pre.Frames)
+	promptB := sprite.BuildStripPrompt(desc, style, specB, "", "") + sprite.PoseTemplateClause(stateName, pre.Frames)
 
 	type variant struct {
 		id     string
@@ -203,20 +203,6 @@ func run(basePath, posePath string, poseRows, poseRow int, desc, styleKey, state
 		fmt.Printf("  %s/%s.gif\n", outDir, v.id)
 	}
 	return nil
-}
-
-// poseTemplateClause is the new instruction that repurposes a DIFFERENT
-// character's motion sheet as a pose template: identity comes from image 1,
-// only the body choreography comes from image 2, and image 2's effects/colours
-// are explicitly discarded.
-func poseTemplateClause(stateName string, frames int) string {
-	return fmt.Sprintf(`
-Pose template (CRITICAL — read carefully): TWO images are attached.
-- Image 1 is the CANONICAL CHARACTER. Take ALL identity from it: face, hairstyle, body build, outfit, armor, cape, palette, and the weapon or signature prop. The output MUST be image 1's character.
-- Image 2 is a POSE TEMPLATE showing a DIFFERENT character performing the "%s" action across several frames, read left to right. Copy ONLY the body choreography from image 2: stance, limb positions, weight shift, wind-up, strike, and recovery arc. Re-pose OUR character (image 1) through those same key poses and motion timing.
-- Do NOT copy image 2's character, colours, outfit, weapon shape, or its background. Do NOT reproduce any glow, slash-arc, swoosh, streak, spark, or motion effect drawn in image 2 — render only OUR character's solid body in those poses on the clean keying background.
-- Distribute the template's motion across our EXACTLY %d poses (start/wind-up, peak strike, settle).
-`, stateName, frames)
 }
 
 // cropRow returns the chosen direction row of a multi-row sprite sheet as its
