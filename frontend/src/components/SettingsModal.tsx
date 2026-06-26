@@ -138,6 +138,9 @@ export default function SettingsModal({ settings, onClose, onSaved }: IProps) {
                 const v = e.target.checked;
                 setMotionLibrary(v);
                 await SetMotionLibrary(v);
+                // Refresh the parent settings so a reopened modal reflects the saved
+                // value (keepOpen=true keeps this modal open), matching the other controls.
+                onSaved(t("toast_motion_saved"), true);
               }}
             />
           </label>

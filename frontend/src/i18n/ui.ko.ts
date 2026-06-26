@@ -47,6 +47,7 @@ const ko: Record<string, string> = {
   toast_key_saved: "{provider} API 키가 저장되었습니다.",
   toast_model_saved: "{provider} 모델이 저장되었습니다.",
   toast_provider_active: "{provider}을(를) 사용합니다.",
+  toast_motion_saved: "모션 레퍼런스 설정이 업데이트되었습니다.",
   language: "언어",
   help_gemini: "Google AI Studio에서 발급받은 키를 입력하세요.",
   help_openai: "OpenAI Platform에서 발급받은 키를 입력하세요. (.env의 OPENAI_API_KEY도 자동 인식)",

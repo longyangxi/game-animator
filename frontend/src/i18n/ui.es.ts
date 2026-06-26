@@ -47,6 +47,7 @@ const es: Record<string, string> = {
   toast_key_saved: "Clave API de {provider} guardada.",
   toast_model_saved: "Modelo de {provider} guardado.",
   toast_provider_active: "Ahora usando {provider}.",
+  toast_motion_saved: "Referencia de movimiento actualizada.",
   language: "Idioma",
   help_gemini: "Introduce la clave emitida en Google AI Studio.",
   help_openai: "Introduce la clave emitida en OpenAI Platform. (OPENAI_API_KEY en .env se detecta automáticamente.)",

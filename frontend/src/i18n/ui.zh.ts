@@ -47,6 +47,7 @@ const zh: Record<string, string> = {
   toast_key_saved: "{provider} API 密钥已保存。",
   toast_model_saved: "{provider} 模型已保存。",
   toast_provider_active: "已切换为使用 {provider}。",
+  toast_motion_saved: "动作参考图设置已更新。",
   language: "语言",
   help_gemini: "请输入在 Google AI Studio 获取的密钥。",
   help_openai: "请输入在 OpenAI Platform 获取的密钥。(.env 中的 OPENAI_API_KEY 也会自动识别)",

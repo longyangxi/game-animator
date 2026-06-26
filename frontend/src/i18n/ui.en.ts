@@ -47,6 +47,7 @@ const en: Record<string, string> = {
   toast_key_saved: "{provider} API key saved.",
   toast_model_saved: "{provider} model saved.",
   toast_provider_active: "Now using {provider}.",
+  toast_motion_saved: "Motion reference updated.",
   language: "Language",
   help_gemini: "Enter the key issued from Google AI Studio.",
   help_openai: "Enter the key issued from OpenAI Platform. (OPENAI_API_KEY in .env is auto-detected.)",
