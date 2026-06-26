@@ -30,7 +30,7 @@ Facing direction lock (overrides any other facing or view instruction in this pr
 - Every frame in the strip must use this exact same viewing angle. Never drift back toward a front view and never mirror the character between frames.
 
 Movement: walking.
-Choreography: Readable side-view walking cycle: alternating legs with clear contact and passing poses, opposite arm swing, slight body bob. Each frame shows a distinctly different leg position.
+Choreography: Readable side-view walking cycle with clear, lively poses: alternating legs hitting distinct contact and passing positions, full opposite-arm swing, a purposeful slight body bob. Each frame a distinctly different, well-defined leg position; the final pose loops cleanly into the first.
 Treat the 6 poses as evenly timed beats of one continuous motion — pose k is phase k of 6, and neighbours read as smooth in-betweens, never unrelated stances.
 It loops: the final pose must hand off cleanly into the first.
 
