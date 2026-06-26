@@ -1,0 +1,3 @@
+provider=openai model=gpt-image-2 style=pixel state=attack frames=5 → experiments/pose-template/out
+[A_pose+text] generating... 5/5 frames, motion=0.362 (52s)
+[B_pose-only] generating... 
