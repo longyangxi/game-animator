@@ -44,7 +44,7 @@ export default function SettingsModal({ settings, onClose, onSaved }: IProps) {
   const [tab, setTab] = useState(settings.provider || "gemini");
   const [key, setKey] = useState("");
   const [model, setModel] = useState(settings.providers?.[settings.provider || "gemini"]?.model ?? "");
-  const [motionLibrary, setMotionLibrary] = useState(settings.motionLibrary ?? true);
+  const [motionLibrary, setMotionLibrary] = useState(settings.motionLibrary ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 

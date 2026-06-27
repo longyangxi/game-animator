@@ -63,8 +63,8 @@ func TestSettingsCfg(t *testing.T) {
 
 func TestMotionLibraryEnabled(t *testing.T) {
 	var s Settings
-	if !s.MotionLibraryEnabled() {
-		t.Errorf("unset MotionLibrary should default to enabled (true)")
+	if s.MotionLibraryEnabled() {
+		t.Errorf("unset MotionLibrary should default to disabled (off)")
 	}
 	off := false
 	s.MotionLibrary = &off
