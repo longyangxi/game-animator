@@ -483,16 +483,9 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 		insp := sprite.InspectFrames(extracted.Frames, bgKey, baseN)
 		// for pixel-art styles, apply shared-palette quantization + pixel-grid snapping to make it "true" pixel art
 		sprite.PixelPostProcess(extracted.Frames, sprite.PaletteSizeForStyle(args.StyleKey))
-		// ping-pong loops are generated as an outbound half cycle; mirror them into a
-		// seamless there-and-back loop for preview/export. The frame-count check below
-		// still uses the generated (half) count in extracted.Found.
-		outFrames := extracted.Frames
-		if sprite.IsPingPong(args.State.Name) {
-			outFrames = sprite.PingPongFrames(extracted.Frames)
-		}
 		cand.Found = extracted.Found
 		cand.Warnings = extracted.Warnings
-		for _, f := range outFrames {
+		for _, f := range extracted.Frames {
 			u, err := pngDataURL(f)
 			if err != nil {
 				return res, err
@@ -513,13 +506,13 @@ func (a *App) GenerateState(args GenerateStateArgs) (StateResult, error) {
 
 		// succeed immediately if the frame count is exact and there are no serious quality issues
 		if cand.Found == expected && insp.Ok() {
-			saveGalleryFrames(args.State.Name, outFrames)
+			saveGalleryFrames(args.State.Name, extracted.Frames)
 			return cand, nil
 		}
 		// update the best candidate: frame count first, then fewer errors on a tie
 		score := cand.Found*100 - errCount*10
 		if score > bestScore {
-			best, bestScore, bestImgs = cand, score, outFrames
+			best, bestScore, bestImgs = cand, score, extracted.Frames
 		}
 		lastErr = nil
 
