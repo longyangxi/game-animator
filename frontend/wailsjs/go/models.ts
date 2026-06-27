@@ -174,6 +174,7 @@ export namespace main {
 	export class SettingsInfo {
 	    provider: string;
 	    providers: Record<string, ProviderInfo>;
+	    motionLibrary: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsInfo(source);
@@ -183,6 +184,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.provider = source["provider"];
 	        this.providers = this.convertValues(source["providers"], ProviderInfo, true);
+	        this.motionLibrary = source["motionLibrary"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
